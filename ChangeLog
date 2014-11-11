@@ -1,0 +1,18 @@
+Version 0.4	2014/11/10
+	- added the option "Real" with improved support for read data
+		- the "overwrite" and "cleanup" options are turned off with
+		the "Real" option
+		- automatically switch to full QUAST evalution if no reference
+		genome is provided
+	- added the option "verify": iWGS will verify the settings and quit
+
+Version 0.3	2014/11/05
+	- switch from pIRS v1.1.1 to v2.0.0
+
+Version 0.2	2014/11/04
+	- added the "overwrite" option, which enables the use of real data
+	with iWGS
+	- added the supports to Velvet and ABYSS
+
+Version 0.1	2014/10/15
+	- the initial release of iWGS
