@@ -1,3 +1,9 @@
+Version 0.5	2014/11/14
+	- added "QC" related options in the control file to carry out quality/
+	adapter trimming and error correction on reads before assembly
+	- added the Preprocess.pm module
+	- switch from FastqToSam.jar to Picard.jar
+
 Version 0.4	2014/11/10
 	- added the option "Real" with improved support for read data
 		- the "overwrite" and "cleanup" options are turned off with

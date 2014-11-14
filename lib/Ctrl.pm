@@ -16,9 +16,11 @@ sub init_global_opt	{
 
 	my %global_opt = (
 		"genome" => undef,
+		"genome_size" => 0,
 		"threads" => 1,
 		"memory" => 8,
 		"out_dir" => getcwd(),
+		"qc" => undef,
 		"pirs" => {
 			"error_rate" => 1,						# set to "1" to use default setting of pIRS
 			"error_profile" => undef,					# leave it blank to use the default profile of pIRS
@@ -45,6 +47,19 @@ sub init_global_opt	{
 			"length_min" => "100",
 			"accuracy_max" => "0.90",
 			"accuracy_min" => "0.75",
+		},
+		"trimmomatic" => {
+			"trailing" => "3",
+			"adapters" => undef,
+			"minlen" => "25",
+		},
+		"nextclip" => {
+			"adapter" => "CTGTCTCTTATACACATCT",
+			"minlen" => "25",
+		}, 
+		"quake" => {
+			"kmer" => 0,
+			"minlen" => "25",
 		},
 		"abyss" => {
 			"kmer" => 0,
@@ -87,17 +102,20 @@ sub init_global_opt	{
 	$global_opt{'bin'}->{'pirs'} = (-e "$root_dir/tools/pIRS/pirs") ? "$root_dir/tools/pIRS/pirs" : File::Which::which("pirs");
 	$global_opt{'bin'}->{'art'} = (-e "$root_dir/tools/ART/art_illumina") ? "$root_dir/tools/ART/art_illumina" : File::Which::which("art_illumina");
 	$global_opt{'bin'}->{'pbsim'} = (-e "$root_dir/tools/PBSIM/bin/pbsim") ? "$root_dir/tools/PBSIM/bin/pbsim" : File::Which::which("pbsim");
+	$global_opt{'bin'}->{'trimmomatic'} = (-e "$root_dir/tools/Trimmomatic/trimmomatic.jar") ? "$root_dir/tools/Trimmomatic/trimmomatic.jar" : File::Which::which("trimmomatic.jar");
+	$global_opt{'bin'}->{'nextclip'} = (-e "$root_dir/tools/NextClip/bin/nextclip") ? "$root_dir/tools/NextClip/bin/nextclip" : File::Which::which("nextclip");
+	$global_opt{'bin'}->{'quake'} = (-e "$root_dir/tools/Quake/bin/quake.py") ? "$root_dir/tools/Quake/bin/quake.py" : File::Which::which("quake.py");
 	$global_opt{'bin'}->{'kmergenie'} = (-e "$root_dir/tools/kmergenie/kmergenie") ? "$root_dir/tools/kmergenie/kmergenie" : File::Which::which("kmergenie");
 	$global_opt{'bin'}->{'abyss'} = (-e "$root_dir/tools/ABYSS/bin/abyss-pe") ? "$root_dir/tools/ABYSS/bin/abyss-pe" : File::Which::which("abyss-pe");
 	$global_opt{'bin'}->{'allpaths'} = (-e "$root_dir/tools/ALLPATHS-LG/bin/RunAllPathsLG") ? "$root_dir/tools/ALLPATHS-LG/bin/RunAllPathsLG" : File::Which::which("RunAllPathsLG");
 	$global_opt{'bin'}->{'ca'} = (-e "$root_dir/tools/CA/bin/PBcR") ? "$root_dir/tools/CA/bin/PBcR" : File::Which::which("PBcR");
 	$global_opt{'bin'}->{'discovar'} = (-e "$root_dir/tools/DISCOVAR/bin/DiscovarExp") ? "$root_dir/tools/DISCOVAR/bin/Discovarexp" : File::Which::which("Discovarexp");
-	$global_opt{'bin'}->{'soapdenovo2'} = (-e "$root_dir/tools/SOAPdenovo2") ? "$root_dir/tools/SOAPdenovo2" : File::Which::which("SOAPdenovo2");
+	$global_opt{'bin'}->{'soapdenovo2'} = (-e "$root_dir/tools/SOAPdenovo2/SOAPdenovo2") ? "$root_dir/tools/SOAPdenovo2/SOAPdenovo2" : File::Which::which("SOAPdenovo2");
 	$global_opt{'bin'}->{'spades'} = (-e "$root_dir/tools/SPAdes/bin/spades.py") ? "$root_dir/tools/SPAdes/bin/spades.py" : File::Which::which("spades.py");
 	$global_opt{'bin'}->{'dipspades'} = (-e "$root_dir/tools/SPAdes/bin/dipspades.py") ? "$root_dir/tools/dipSPAdes/bin/dipspades.py" : File::Which::which("dipspades.py");
 	$global_opt{'bin'}->{'velvetg'} = (-e "$root_dir/tools/Velvet/velvetg") ? "$root_dir/tools/Velvet/velvetg" : File::Which::which("velvetg");
 	$global_opt{'bin'}->{'velveth'} = (-e "$root_dir/tools/Velvet/velveth") ? "$root_dir/tools/Velvet/velveth" : File::Which::which("velveth");
-	$global_opt{'bin'}->{'fastqtosam'} = (-e "$root_dir/tools/FastqToSam.jar") ? "$root_dir/tools/FastqToSam.jar" : File::Which::which("FastqToSam.jar");
+	$global_opt{'bin'}->{'picard'} = (-e "$root_dir/tools/Picard/picard.jar") ? "$root_dir/tools/Picard/picard.jar" : File::Which::which("picard.jar");
 	$global_opt{'bin'}->{'quast'} = (-e "$root_dir/tools/QUAST/quast.py") ? "$root_dir/tools/QUAST/quast.py" : File::Which::which("quast.py");
 		
 	$global_opt{'pbsim'}->{'model_qc'} = (defined($global_opt{'bin'}->{'pbsim'})) ? dirname($global_opt{'bin'}->{'pbsim'})."/../data/model_qc_clr" : undef;
@@ -202,6 +220,7 @@ sub check_global_opt	{
 	my $cwd = getcwd();
 	if (defined($global_opt->{'genome'}) && $global_opt->{'genome'} !~ /^\//) { $global_opt->{'genome'} = $cwd."/".$global_opt->{'genome'}; }
 	if (defined($global_opt->{'out_dir'}) && $global_opt->{'out_dir'} !~ /^\//) { $global_opt->{'out_dir'} = $cwd."/".$global_opt->{'out_dir'}; }
+	if (defined($global_opt->{'trimmomatic'}->{'adapters'}) && $global_opt->{'trimmomatic'}->{'adapters'} !~ /^\//) { $global_opt->{'trimmomatic'}->{'adapters'} = $cwd."/".$global_opt->{'trimmomatic'}->{'adapters'}; }
 	if (defined($global_opt->{'pirs'}->{'error_profile'}) && $global_opt->{'pirs'}->{'error_profile'} !~ /^\//) { $global_opt->{'pirs'}->{'error_profile'} = $cwd."/".$global_opt->{'pirs'}->{'error_profile'}; }
 	if (defined($global_opt->{'pirs'}->{'gc_profile'}) && $global_opt->{'pirs'}->{'gc_profile'} !~ /^\//) { $global_opt->{'pirs'}->{'gcc_profile'} = $cwd."/".$global_opt->{'pirs'}->{'gc_profile'}; }
 	if (defined($global_opt->{'pirs'}->{'indel_profile'}) && $global_opt->{'pirs'}->{'indel_profile'} !~ /^\//) { $global_opt->{'pirs'}->{'indel_profile'} = $cwd."/".$global_opt->{'pirs'}->{'indel_profile'}; }
@@ -213,49 +232,144 @@ sub check_global_opt	{
 	my @err_msg; my @warn_msg;
 	# check general settings
 	unless (($real == 1 && !defined($global_opt->{'genome'})) || (defined($global_opt->{'genome'}) && -e $global_opt->{'genome'})) { push @err_msg, "\tThe reference genome sequence does not exist.\n"; }
+	unless ($global_opt->{'genome_size'} =~ /^\d+$/ && ($real == 0 || $global_opt->{'genome_size'} > 0)) { push @err_msg, "\tThe genome size should be an integer no less than zero (must be positive if a reference genome is not provided).\n"; }
 	unless ($global_opt->{'threads'} =~ /^\d+$/ && $global_opt->{'threads'} > 0) { push @err_msg, "\tThe number of threads to use should be a positive integer.\n"; }
 	unless ($global_opt->{'memory'} =~ /^\d+$/ && $global_opt->{'memory'} > 0) { push @err_msg, "\tThe amount of memory to use should be a positive integer.\n"; }
-	# check the settings of libraries and assembly protocols (e.g. if dependencies are available, if libraries and protocols are compatible)
+	# check the settings of libraries and assembly protocols (e.g. if executables are available, if libraries and protocols are compatible)
 	if (defined($global_opt->{'library'}) && defined($global_opt->{'protocol'}))	{
-		&check_libraries($global_opt, \@err_msg);
+		# if QC is turn on, prepare QC settings for relevant libraries
+		if (defined($global_opt->{'qc'}))	{
+			&qc_setup($global_opt, \@err_msg, \@warn_msg);
+		}
+		&check_libraries($global_opt, \@err_msg, \@warn_msg);
 		&check_protocols($global_opt, \@err_msg);
 		&check_compatibility($global_opt->{'library'}, $global_opt->{'protocol'}, \@err_msg);
 	}	elsif (defined($global_opt->{'library'}) || defined($global_opt->{'protocol'}))	{
 		push @err_msg, "\tPlease specify at least one library and one assembly protocol together, or leave both blank to run with default settings.\n";
 	}	else	{
 		&default_protocol($global_opt);
-		push @warn_msg, "\tWARNING: No library or assembly protocol specified, continue with the default settings.\n";
+		push @warn_msg, "\tNo library or assembly protocol specified, continue with the default settings.\n";
 	}
-	# check settings for QUAST
+	# check the settings for QUAST
 	unless (defined($global_opt->{'bin'}->{'quast'}) && -e $global_opt->{'bin'}->{'quast'}) { push @err_msg, "\tThe required genome assembly evaluation tool QUAST is not available.\n";}
 	unless ($global_opt->{'quast'}->{'eukaryote'} =~ /^[01]$/) { push @err_msg, "\tThe option \"QUAST.eukaryote\" should be either \"0\" or \"1\".\n"; }
 	unless ($global_opt->{'quast'}->{'gage'} =~ /^[01]$/) { push @err_msg, "\tThe option \"QUAST.gage\" should be either \"0\" or \"1\".\n"; }
 	unless (!defined($global_opt->{'quast'}->{'gene'}) || -e $global_opt->{'quast'}->{'gene'}) { push @err_msg, "\tThe gene annotation file for QUAST does not exist.\n"; }
 
+	# if one or more warnings were detected, print out the message
+	if (@warn_msg)	{
+		my $warn_msg = join "", @warn_msg;
+		print "WARNING(s) detected in configurations:\n$warn_msg\n";
+	}
+
 	# if one or more errors were detected, print out the message and quit
 	if (@err_msg)	{
 		my $err_msg = join "", @err_msg;
-		die "ERROR(s) detected in configurations:\n$err_msg";
-	}
-
-	# if one or more warnings were detected, print out the message and continue
-	if (@warn_msg)	{
-		print @warn_msg;
+		die "ERROR(s) detected in configurations:\n$err_msg\n";
 	}
 
 	return;
 }
 
 #############################
+# prepare QC settings for relevant libraries
+#############################
+sub qc_setup	{
+	(my $global_opt, my $err_msg, my $warn_msg) = @_;
+
+	# read in adapter seuqneces for Trimmomatic adapter trimming
+	my %adapter; my %invalid;
+	if (defined($global_opt->{'trimmomatic'}->{'adapters'}))	{
+		if  (-e $global_opt->{'trimmomatic'}->{'adapters'})	{
+			open ADAPTER, "< $global_opt->{'trimmomatic'}->{'adapters'}" or die "Can't open $global_opt->{'trimmomatic'}->{'adapters'}!\n";
+			while (<ADAPTER>)	{
+				next unless /\w/;
+				chomp;
+				my @adapter = split /\s+/;
+				if ($#adapter == 1)	{
+					if (defined($global_opt->{'library'}->{$adapter[0]}))	{
+						$adapter{$adapter[0]} = $adapter[1];
+					}	else	{
+						$invalid{$adapter[0]} = 1;
+					}
+				}	else	{
+					push @{$err_msg}, "\tThe following line in the adapter list for Trimmomatic is not in a correct format:\n\t\t\"$_\"\n";
+				}
+			}
+			close (ADAPTER);
+		}	else	{
+			push @{$err_msg}, "\tThe adapter list for Trimmomatic does not exist.\n";
+		}
+	}
+
+	# report libraries mentioned only in the adapter sequence file
+	if (%invalid)	{
+		push @{$warn_msg}, "\t".(join ", ", sort keys %invalid)." mentioned only in the adapter list, will be ignored.\n";
+	}
+
+	# loop through all libraries with QC enabled
+	my @qc_libs = ($global_opt->{'qc'} eq "all") ? keys %{$global_opt->{'library'}} : split /,/, $global_opt->{'qc'};
+	foreach my $library (@qc_libs)	{
+		my @err_msg; my @warn_msg;
+		if (defined($global_opt->{'library'}->{$library}))	{
+			if ($global_opt->{'library'}->{$library}->{'read_type'} eq "clr")	{
+				push @warn_msg, "\t\tQC for this library will be skipped, since PacBio CLR data is not supported.\n";
+			}	else	{
+				# set the QC flag for qualified library
+				$global_opt->{'library'}->{$library}->{'qc'} = 1;
+				# set Trimmomatic quality trimming parameters
+				$global_opt->{'library'}->{$library}->{'tm-trailing'} = $global_opt->{'trimmomatic'}->{'trailing'};
+				$global_opt->{'library'}->{$library}->{'tm-minlen'} = $global_opt->{'trimmomatic'}->{'minlen'};
+				if ($global_opt->{'library'}->{$library}->{'read_type'} eq "se" || $global_opt->{'library'}->{$library}->{'read_type'} eq "pe")	{
+					# set adapter sequences for qualified SE/PE library
+					$global_opt->{'library'}->{$library}->{'qk-kmer'} = $global_opt->{'quake'}->{'kmer'};
+					$global_opt->{'library'}->{$library}->{'qk-minlen'} = $global_opt->{'quake'}->{'minlen'};
+				}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "mp")	{
+					# set adapter sequence for MP library
+					$global_opt->{'library'}->{$library}->{'nc-adapter'} = $global_opt->{'nextclip'}->{'adapter'};
+					$global_opt->{'library'}->{$library}->{'nc-minlen'} = $global_opt->{'nextclip'}->{'minlen'};
+				}
+			}
+			if (defined($adapter{$library}))        {
+				if ($global_opt->{'library'}->{$library}->{'read_type'} eq "se" || $global_opt->{'library'}->{$library}->{'read_type'} eq "pe") {
+					$global_opt->{'library'}->{$library}->{'tm-adapter'} = $adapter{$library};
+				}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "mp")	{
+					push @warn_msg, "\t\tTrimmomatic adapter trimming is not compatible with ".uc($global_opt->{'library'}->{$library}->{'read_type'})." library (use NextClip instead), will be ignored.\n";
+				}
+				delete $adapter{$library};
+			}
+		}	else	{
+			push @err_msg, "\t\tthe library $library does not exist.\n";	
+		}
+		if (@warn_msg)	{
+			push @{$warn_msg}, "\tWarning(s) detected in QC settings for library $library:\n";
+			push @{$warn_msg}, @warn_msg;
+		}
+		if (@err_msg)	{
+			push @{$err_msg}, "\tProblem(s) detected in QC settings for library $library:\n";
+			push @{$err_msg}, @err_msg;
+		}
+	}
+	
+	# check if QC has been enabled for all libraries mentioned in the adapter sequence file
+	if (%adapter)	{
+		push @{$warn_msg}, "\tQC is not enabled for ".(join ", ", sort keys %adapter).", the adapter sequences will be ignored.\n";
+	}
+	
+	return;
+}
+
+
+#############################
 # validate libraries
 #############################
 sub check_libraries	{
-	(my $global_opt, my $err_msg) = @_;
+	(my $global_opt, my $err_msg, my $warn_msg) = @_;
 
 	my $libraries = $global_opt->{'library'};
 	foreach my $library (sort keys %{$libraries})	{
 		# to collect library specific error messages
-		my @err_msg;
+		my @err_msg; my @warn_msg;
 		# check coverage, must be greater than 0
 		unless (defined($libraries->{$library}->{'depth'}) && $libraries->{$library}->{'depth'} =~ /^[\d\.]+$/ && $libraries->{$library}->{'depth'} > 0) { push @err_msg, "\t\tcoverage should be a positive number.\n"; }
 		# check settings for each library type
@@ -265,11 +379,11 @@ sub check_libraries	{
 				unless (defined($libraries->{$library}->{'accuracy_mean'}) && $libraries->{$library}->{'accuracy_mean'} =~ /^[\d\.]+$/ && $libraries->{$library}->{'accuracy_mean'} > 0 && $libraries->{$library}->{'accuracy_mean'} <= 1) { push @err_msg, "\t\tthe average reads quality should be a number in (0, 1].\n"; }
 				# check the sd of PacBio reads quality, must be greater than 0
 				unless (defined($libraries->{$library}->{'accuracy_sd'}) && $libraries->{$library}->{'accuracy_sd'} =~ /^[\d\.]+$/) { push @err_msg, "\t\tthe standard deviation of reads quality should be a number no less than zero.\n"; }
-				&check_library("pbsim", $libraries->{$library}, $global_opt, \@err_msg);
+				&check_library("pbsim", $libraries->{$library}, $global_opt, \@err_msg, \@warn_msg);
 			}	elsif ($libraries->{$library}->{'read_type'} eq "se")	{
 				# check the read length, must be greater than 0
 				unless (defined($libraries->{$library}->{'read_length'}) && $libraries->{$library}->{'read_length'} =~ /^\d+$/ && $libraries->{$library}->{'read_length'} > 0) { push @err_msg, "\t\tthe read length must be a positive integer.\n"; }
-				&check_library("art", $libraries->{$library}, $global_opt, \@err_msg);
+				&check_library("art", $libraries->{$library}, $global_opt, \@err_msg, \@warn_msg);
 			}	elsif ($libraries->{$library}->{'read_type'} eq "pe" || $libraries->{$library}->{'read_type'} eq "mp")	{
 				# check the average and standard deviation of insert size, must be greater than 0
 				unless (defined($libraries->{$library}->{'frag_mean'}) && $libraries->{$library}->{'frag_mean'} =~ /^\d+$/ && $libraries->{$library}->{'frag_mean'} > 0) { push @err_msg, "\t\tthe average insert size should be a positive number.\n"; }
@@ -283,9 +397,9 @@ sub check_libraries	{
 				# check the read length, must be greater than 0
 				if (defined($libraries->{$library}->{'read_length'}) && $libraries->{$library}->{'read_length'} =~ /^\d+$/ && $libraries->{$library}->{'read_length'} > 0)	{
 					if ($libraries->{$library}->{'read_length'} <= 100)	{
-						&check_library("pirs", $libraries->{$library}, $global_opt, \@err_msg);
+						&check_library("pirs", $libraries->{$library}, $global_opt, \@err_msg, \@warn_msg);
 					}	else	{
-						&check_library("art", $libraries->{$library}, $global_opt, \@err_msg);
+						&check_library("art", $libraries->{$library}, $global_opt, \@err_msg, \@warn_msg);
 					}	
 				}	else	{
 					push @err_msg, "\t\tthe read length must be a positive integer.\n";
@@ -295,6 +409,10 @@ sub check_libraries	{
 			}
 		}	else	{
 			push @err_msg, "\t\tmust define a read type.\n";
+		}
+		if (@warn_msg)	{
+			push @{$warn_msg}, "\tWarning(s) detected in the library $library:\n";
+			push @{$warn_msg}, @warn_msg;
 		}
 		if (@err_msg)	{
 			push @{$err_msg}, "\tProblem(s) detected in the library $library:\n";
@@ -306,10 +424,10 @@ sub check_libraries	{
 }
 
 #############################
-# validate the settings of a library 
+# validate the settings of individual library 
 #############################
 sub check_library	{
-	(my $simulator, my $library, my $global_opt, my $err_msg) = @_;
+	(my $simulator, my $library, my $global_opt, my $err_msg, my $warn_msg) = @_;
 	
 	# set simulator names
 	my %simulator = (
@@ -337,8 +455,8 @@ sub check_library	{
 		unless (exists $library->{$key}) { $library->{$key} = $global_opt->{$simulator}->{$key}; }
 	}
 
-	# list basic settings for each simulator
-	my %settings = (
+	# list general settings for each simulator
+	my %general_settings = (
 		"pirs" => {
 			"depth" => 1,
 			"read_type" => 1,
@@ -360,9 +478,24 @@ sub check_library	{
 			"accuracy_sd" => 1,
 		},
 	);
+	# list QC settings
+	my %qc_settings = (
+		"tm-trailing" => "trimmomatic",
+		"tm-adapter" => "trimmomatic",
+		"tm-minlen" => "trimmomatic",
+		"nc-adapter" => "nextclip",
+		"nc-minlen" => "nextclip",
+		"qk-kmer" => "quake",
+		"qk-minlen" => "quake",
+	);
+	# record all QC tasks
+	my %qc_task;
 	# check if settings for the library is compatible with the simulator
 	foreach my $key (keys %{$library})	{
-		unless ($key eq "simulator" || exists $settings{$simulator}->{$key} || exists $global_opt->{$simulator}->{$key}) { push @{$err_msg}, "\t\tthe option \"$key\" is not compatible with the simulator $simulator{$simulator}.\n"; }
+		unless ($key eq "simulator" || exists $general_settings{$simulator}->{$key} || exists $global_opt->{$simulator}->{$key} || $key eq "qc" || exists $qc_settings{$key}) { push @{$err_msg}, "\t\tthe option \"$key\" is not compatible with the simulator $simulator{$simulator} or the QC tools.\n"; }
+		if (defined($qc_settings{$key}))	{
+			$qc_task{$qc_settings{$key}} = 1;
+		}
 	}
 	
 	# check settings for each simulator
@@ -394,6 +527,55 @@ sub check_library	{
 		unless ($library->{'length_min'} =~ /^\d+$/ && $library->{'length_min'} <= $library->{'length_mean'} && $library->{'length_min'} > 0) { push @{$err_msg}, "\t\tthe minimum PacBio read length should be a positive integer no larger than the mean read length.\n"; }
 		unless ($library->{'accuracy_max'} =~ /^[\d\.]+$/ && $library->{'accuracy_max'} >= $library->{'accuracy_mean'} && $library->{'accuracy_max'} <= 1) { push @{$err_msg}, "\t\tthe maximum PacBio read accuracy should be a number between 0 and 1, and no smaller than the mean read accuracy.\n"; }
 		unless ($library->{'accuracy_min'} =~ /^[\d\.]+$/ && $library->{'accuracy_min'} <= $library->{'accuracy_mean'} && $library->{'accuracy_max'} >= 0) { push @{$err_msg}, "\t\tthe minimum PacBio read accuracy should be a number between 0 and 1, and no larger than the mean read accuracy.\n"; }
+	}
+
+	# check QC settings
+	if (defined($library->{'qc'}) && $library->{'qc'} == 1)	{
+		unless (%qc_task)	{
+			delete $library->{'qc'};
+			push @{$warn_msg}, "\t\tQC is enabled for this library with NO QC task specified, will be ignored.\n";
+		}
+		if (defined($qc_task{'trimmomatic'}))	{
+			unless (defined($global_opt->{'bin'}->{'trimmomatic'}) && -e $global_opt->{'bin'}->{'trimmomatic'}) { push @{$err_msg}, "\t\tthe required quality control tool Trimmomatic is not available.\n";}
+			unless (!defined($library->{'tm-trailing'}) || $library->{'tm-trailing'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe threshold of Trimmomatic quality-based trimming should be an integer no less than zero.\n"; }
+			unless (!defined($library->{'tm-minlen'}) || $library->{'tm-minlen'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe minimum read length after Trimmomatic trimming should be an integer no less than zero.\n"; }
+			if (defined($library->{'tm-adapter'}))	{
+				if ($library->{'read_type'} eq "se" || $library->{'read_type'} eq "pe")	{
+					# convert relatvie path to absolute path
+					if ($library->{'tm-adapter'} !~ /^\//) {
+						$library->{'tm-adapter'} = getcwd()."/".$library->{'tm-adapter'};
+					}
+					unless (-e $library->{'tm-adapter'}) { push @{$err_msg}, "\t\tthe adapter sequence file for Trimmomatic does not exist.\n"; }
+				}	else	{
+					push @{$err_msg}, "\t\tTrimmomatic adapter trimming is not compatible with ".uc($library->{'read_type'})." library.\n";
+				}
+			}
+		}
+		if (defined($qc_task{'nextclip'}))	{
+			if ($library->{'read_type'} eq "mp")	{
+				unless (defined($global_opt->{'bin'}->{'nextclip'}) && -e $global_opt->{'bin'}->{'nextclip'}) { push @{$err_msg}, "\t\tthe required quality control tool NextClip is not available.\n";}
+				unless (defined($library->{'nc-adapter'}) && $library->{'nc-adapter'} =~ /^[ATCG]+$/) { push @{$err_msg}, "\t\tadapter must be a valid DNA sequence"; }
+				unless (defined($library->{'nc-minlen'}) && $library->{'nc-minlen'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe minimum read length after NextClip adapter trimming should be an integer no less than zero.\n"; }
+			}	else	{
+				push @{$err_msg}, "\t\tNextClip adapter trimming is not compatible with ".uc($library->{'read_type'})." library.\n";
+			}
+		}
+		if (defined($qc_task{'quake'}))	{
+			if ($library->{'read_type'} eq "se" || $library->{'read_type'} eq "pe")	{
+				unless (defined($global_opt->{'bin'}->{'quake'}) && -e $global_opt->{'bin'}->{'quake'}) { push @{$err_msg}, "\t\tthe required quality control tool Quake is not available.\n";}
+				unless (defined($library->{'qk-kmer'}) && $library->{'qk-kmer'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe k-mer size for Quake error correction should be an integer no less than zero.\n"; }
+				unless (defined($library->{'qk-minlen'}) && $library->{'qk-minlen'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe minimum read length after Quake error correction should be an integer no less than zero.\n"; }
+			}	else	{
+				push @{$err_msg}, "\t\tQuake error correction is not compatible with ".uc($library->{'read_type'})." library.\n";
+			}
+		}
+	}	else	{
+		if (%qc_task)	{
+			foreach my $key (%qc_settings)	{
+				if (exists $library->{$key})	{ delete $library->{$key}; }
+			}
+			push @{$warn_msg}, "\t\tQC is turned off for this library, all QC settings will be ignored.\n";
+		}
 	}
 
 	return;
@@ -457,7 +639,7 @@ sub check_protocols	{
 		if (defined($kmergenie{$assembler}) && $protocols->{$protocol}->{'kmer'} eq "0")	{
 			unless (defined($global_opt->{'bin'}->{'kmergenie'}) && -e $global_opt->{'bin'}->{'kmergenie'}) { push @err_msg, "\t\tthe k-mer optimizer KmerGenie is not available.\n"; }
 		}	elsif ($assembler eq "discovar")	{
-			unless (defined($global_opt->{'bin'}->{'fastqtosam'}) && -e $global_opt->{'bin'}->{'fastqtosam'}) { push @err_msg, "\t\tthe required tool FastqToSam.jar is not available.\n"; }
+			unless (defined($global_opt->{'bin'}->{'picard'}) && -e $global_opt->{'bin'}->{'picard'}) { push @err_msg, "\t\tthe required tool Picard is not available.\n"; }
 		}
 
 		# check assembler specific options
@@ -649,6 +831,14 @@ sub read_conf_file	{
 
 	# list all library and assembly protocol related settings
 	my %class = (
+		"qc" => "library",
+		"tm-trailing" => "library",
+		"tm-adapter" => "library",
+		"tm-minlen" => "library",
+		"nc-adapter" => "library",
+		"nc-minlen" => "library",
+		"qk-kmer" => "library",
+		"qk-minlen" => "library",
 		"simulator" => "library",
 		"depth" => "library",
 		"read_type" => "library",
@@ -692,6 +882,9 @@ sub read_conf_file	{
 		"pirs" => "bin",
 		"art" => "bin",
 		"pbsim" => "bin",
+		"trimmomatic" => "bin",
+		"nextclip" => "bin",
+		"quake" => "bin",
 		"kmergenie" => "bin",
 		"abyss-pe" => "bin",
 		"allpaths" => "bin",
@@ -702,9 +895,10 @@ sub read_conf_file	{
 		"dipspades" => "bin",
 		"velvetg" => "bin",
 		"velveth" => "bin",
-		"fastqtosam" => "bin",
+		"picard" => "bin",
 		"quast" => "bin",
 		"genome" => 1,
+		"genome_size" => 1,
 		"threads" => 1,
 		"memory" => 1,
 		"out_dir" => 1,
@@ -781,6 +975,7 @@ sub write_conf_file	{
 	push @conf, "#############################\n# Library options\n#############################\n";			
 	foreach my $library (sort keys %{$global_opt->{'library'}})	{
 		push @conf, "\n# parameters for the library $library\n";
+		# write simulation settings
 		push @conf, $library.".read_type = ".uc($global_opt->{'library'}->{$library}->{'read_type'})."\n";
 		push @conf, $library.".depth = $global_opt->{'library'}->{$library}->{'depth'}\n";
 		if ($global_opt->{'library'}->{$library}->{'read_type'} eq "clr")	{
@@ -826,6 +1021,20 @@ sub write_conf_file	{
 			push @conf, $library.".gc_profile = ".(defined($global_opt->{'pirs'}->{'gc_profile'}) ? $global_opt->{'pirs'}->{'gc_profile'} : " ")."\n";
 			push @conf, $library.".indel = $global_opt->{'pirs'}->{'indel'}\n";
 			push @conf, $library.".indel_profile = ".(defined($global_opt->{'pirs'}->{'indel_profile'}) ? $global_opt->{'pirs'}->{'indel_profile'} : " ")."\n";
+		}
+		# write QC settings
+		if (defined($global_opt->{'library'}->{$library}->{'qc'}) && $global_opt->{'library'}->{$library}->{'qc'} == 1) { push @conf, $library.".QC = $global_opt->{'library'}->{$library}->{'qc'}\n"; }
+		if ($global_opt->{'library'}->{$library}->{'read_type'} eq "se" || $global_opt->{'library'}->{$library}->{'read_type'} eq "pe")	{
+			if (defined($global_opt->{'library'}->{$library}->{'tm-trailing'})) { push @conf, $library.".tm-trailing = $global_opt->{'library'}->{$library}->{'tm-trailing'}\n"; }
+			if (defined($global_opt->{'library'}->{$library}->{'tm-adapter'})) { push @conf, $library.".tm-adapter = $global_opt->{'library'}->{$library}->{'tm-adapter'}\n"; }
+			if (defined($global_opt->{'library'}->{$library}->{'tm-minlen'})) { push @conf, $library.".tm-minlen = $global_opt->{'library'}->{$library}->{'tm-minlen'}\n"; }
+			if (defined($global_opt->{'library'}->{$library}->{'qk-kmer'})) { push @conf, $library.".qk-kmer = $global_opt->{'library'}->{$library}->{'qk-kmer'}\n"; }
+			if (defined($global_opt->{'library'}->{$library}->{'qk-minlen'})) { push @conf, $library.".qk-minlen = $global_opt->{'library'}->{$library}->{'qk-minlen'}\n"; }
+		}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "mp")	{
+			if (defined($global_opt->{'library'}->{$library}->{'tm-trailing'})) { push @conf, $library.".tm-trailing = $global_opt->{'library'}->{$library}->{'tm-trailing'}\n"; }
+			if (defined($global_opt->{'library'}->{$library}->{'tm-minlen'})) { push @conf, $library.".tm-minlen = $global_opt->{'library'}->{$library}->{'tm-minlen'}\n"; }
+			if (defined($global_opt->{'library'}->{$library}->{'nc-adapter'})) { push @conf, $library.".nc-adapter = $global_opt->{'library'}->{$library}->{'nc-adapter'}\n"; }
+			if (defined($global_opt->{'library'}->{$library}->{'nc-minlen'})) { push @conf, $library.".nc-minlen = $global_opt->{'library'}->{$library}->{'nc-minlen'}\n"; }
 		}
 	}
 	
@@ -883,6 +1092,7 @@ sub write_conf_file	{
 	# General options
 	push @conf, "#############################\n# General options\n#############################\n";
 	push @conf, "genome = ".(defined($global_opt->{'genome'}) ? $global_opt->{'genome'} : " ")."\n";
+	push @conf, "genome_size = ".(defined($global_opt->{'genome_size'}) ? $global_opt->{'genome_size'} : " ")."\n"; 
 	push @conf, "threads = $global_opt->{'threads'}\n";
 	push @conf, "memory = $global_opt->{'memory'}\n";
 	push @conf, "out_dir = $global_opt->{'out_dir'}\n";
@@ -896,6 +1106,9 @@ sub write_conf_file	{
 	push @conf, "bin.pIRS = ".(defined($global_opt->{'bin'}->{'pirs'}) ? $global_opt->{'bin'}->{'pirs'} : " ")."\n";
 	push @conf, "bin.ART = ".(defined($global_opt->{'bin'}->{'art'}) ? $global_opt->{'bin'}->{'art'} : " ")."\n";
 	push @conf, "bin.PBSIM = ".(defined($global_opt->{'bin'}->{'pbsim'}) ? $global_opt->{'bin'}->{'pbsim'} : " ")."\n";
+	push @conf, "bin.Trimmomatic = ".(defined($global_opt->{'bin'}->{'trimmomatic'}) ? $global_opt->{'bin'}->{'trimmomatic'} : " ")."\n";
+	push @conf, "bin.NextClip = ".(defined($global_opt->{'bin'}->{'nextclip'}) ? $global_opt->{'bin'}->{'nextclip'} : " ")."\n";
+	push @conf, "bin.Quake = ".(defined($global_opt->{'bin'}->{'quake'}) ? $global_opt->{'bin'}->{'quake'} : " ")."\n";
 	push @conf, "bin.KmerGenie = ".(defined($global_opt->{'bin'}->{'kmergenie'}) ? $global_opt->{'bin'}->{'kmergenie'} : " ")."\n";
 	push @conf, "bin.ABYSS = ".(defined($global_opt->{'bin'}->{'abyss-pe'}) ? $global_opt->{'bin'}->{'abyss-pe'} : " ")."\n";
 	push @conf, "bin.ALLPATHS = ".(defined($global_opt->{'bin'}->{'allpaths'}) ? $global_opt->{'bin'}->{'allpaths'} : " ")."\n";
@@ -906,7 +1119,7 @@ sub write_conf_file	{
 	push @conf, "bin.dipSPAdes = ".(defined($global_opt->{'bin'}->{'dipspades'}) ? $global_opt->{'bin'}->{'dipspades'} : " ")."\n";
 	push @conf, "bin.velvetg = ".(defined($global_opt->{'bin'}->{'velvetg'}) ? $global_opt->{'bin'}->{'velvetg'} : " ")."\n";
 	push @conf, "bin.velveth = ".(defined($global_opt->{'bin'}->{'velveth'}) ? $global_opt->{'bin'}->{'velveth'} : " ")."\n";
-	push @conf, "bin.FastqToSam = ".(defined($global_opt->{'bin'}->{'fastqtosam'}) ? $global_opt->{'bin'}->{'fastqtosam'} : " ")."\n";
+	push @conf, "bin.Picard = ".(defined($global_opt->{'bin'}->{'picard'}) ? $global_opt->{'bin'}->{'picard'} : " ")."\n";
 	push @conf, "bin.QUAST = ".(defined($global_opt->{'bin'}->{'quast'}) ? $global_opt->{'bin'}->{'quast'} : " ")."\n";
 
 	open MISC_CONF, "> $cwd/misc.conf" or die "Can't write to misc.conf!";

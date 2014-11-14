@@ -9,13 +9,13 @@ use Getopt::Long;
 use lib ("$FindBin::Bin/lib");
 use Ctrl;
 use Reads;
+use Preprocess;
 use Assembly;
 use Utilities;
 
-
 my $usage = "
 iWGS: in silico Whole Genome Sequencer
-Version 0.4
+Version 0.5
 
 Usage: iWGS [options]
 
@@ -25,10 +25,10 @@ Basic options:
 -t | --threads	  <int>		number of CPUs to use (default: 1)
 -m | --memory	  <int>		number of GBs of memeory to use (default: 8)
 -o | --out_dir	  <string>	the directory to store all outputs, will be created if not already exist (default \"./\")
--c | --cleanup	  <int>		whether to clean up after all steps are finished (default: 0 [no])
--r | --overwrite  <int>		whether to overwrite if a library already exists (default: 0 [no])
--v | --verify	  <int>		verify the settings and quit
 -p | --price	  <string>	provide the pricing information to calculate the cost of each assembly protocol
+-c | --cleanup	  		whether to clean up after all steps are finished (default: 0 [no])
+-r | --overwrite  		whether to overwrite if a library already exists (default: 0 [no])
+-v | --verify	  		verify the settings and quit
 
 Advanced options:
 --Mode				iWGS can run in the following three modes: (default: 1)
@@ -44,6 +44,9 @@ Advanced options:
 Please report any problem to \"xiaofan.zhou\@vanderbilt.edu\".
 ";
 
+#--QC				perform quality control (quliaty/adapter trimming and error correction) before assembly for selected 
+#				libraries (provide a list of library names separated by comma) or all libraries (type \"all\")
+
 unless (@ARGV)	{
 	die "$usage\n";
 }
@@ -51,6 +54,7 @@ unless (@ARGV)	{
 #############################
 # setting parameters
 #############################
+
 my $global_ctrl_file;
 my $cleanup = 0;
 my $overwrite = 0;
@@ -58,7 +62,7 @@ my $verify = 0;
 my $price;
 my $mode = 1;
 my $real = 0;
-my @conf;
+my $conf;
 my %opt;
 
 &GetOptions(
@@ -67,16 +71,16 @@ my %opt;
 	'threads|t=i' => \$opt{'threads'},
 	'memory|m=i' => \$opt{'memory'},
 	'out_dir|o=s' => \$opt{'out_dir'},
-	'cleanup|c=i' => \$cleanup,
-	'overwrite|r=i' => \$overwrite,
-	'verify|v=i' => \$verify,
 	'price|p=s' => \$price,
+	'cleanup|c' => \$cleanup,
+	'overwrite|r' => \$overwrite,
+	'verify|v' => \$verify,
 	"Mode=i" => \$mode,
-	"Conf=s{3}" => \@conf,
-	"Real=i" => \$real,
+	"Conf=s" => \$conf,
+	"Real" => \$real,
 );
 
-# turn off "cleanup" and "overwrite" options in Mode 4
+# force to turn off "cleanup" and "overwrite" options if using Real data
 if ($real == 1)	{
 	$cleanup = 0;
 	$overwrite = 0;
@@ -94,7 +98,7 @@ if ($mode ==1 || $mode == 2)	{
 	# set global options using the global control file
 	if (defined($global_ctrl_file))	{
 		unless (-e $global_ctrl_file)	{
-			die "ERROR! Please make sure the global control file is available!\n";
+			die "ERROR: Please make sure the global control file is available!\n";
 		}
 		&Ctrl::read_global_ctrl_file($global_ctrl_file, \%global_opt);
 	}
@@ -105,7 +109,7 @@ if ($mode ==1 || $mode == 2)	{
 		if (-e $price)	{
 			&Utilities::calculate_price(\%global_opt, $price);
 		}	else	{
-			die "ERROR! The price information file does not exist!\n";
+			die "ERROR: The price information file does not exist!\n";
 		}
 	}
 	# if running in Mode 2, generate configuration files and quit
@@ -114,8 +118,9 @@ if ($mode ==1 || $mode == 2)	{
 		die "Successfully generated configuration files for libraries, assembly protocols, and miscellaneous options!\nThe current iWGS run in Mode $mode finished!\n";
 	}	
 }	elsif ($mode == 3)	{
+	my @conf = split /,/, $conf;
 	unless (@conf && $#conf == 2 && -e $conf[0] && -e $conf[1] && -e $conf[2])	{
-		die "ERROR! In Mode $mode, please make sure there are three configuration files and they are all available!\n";
+		die "ERROR: In Mode $mode, please make sure there are three configuration files and they are all available!\n";
 	}
 	# if running with Mode 3, set lib, prot, and misc options using the corresponding configuration files
 	%global_opt = &Ctrl::read_conf_file(@conf);
@@ -124,7 +129,7 @@ if ($mode ==1 || $mode == 2)	{
 		if (-e $price)	{
 			&Utilities::calculate_price(\%global_opt, $price);
 		}	else	{
-			die "ERROR! The price information file does not exist!\n";
+			die "ERROR: The price information file does not exist!\n";
 		}
 	}
 }	else	{
@@ -132,11 +137,12 @@ if ($mode ==1 || $mode == 2)	{
 }
 
 if ($verify)	{
-	print "All configurations verified, quit the iWGS run!\n\n";
+	print "All configurations verified, the iWGS run finished!\n\n";
 	exit;
 }	else	{
 	print "All configurations verified, now proceed to the next stage!\n\n";
 }
+
 
 #############################
 # reads simulation
@@ -152,7 +158,7 @@ unless (-d "$global_opt{'out_dir'}/libraries")	{
 	mkdir("$global_opt{'out_dir'}/libraries");
 }
 
-unless (-e "$global_opt{'out_dir'}/logs")	{
+unless (-d "$global_opt{'out_dir'}/logs")	{
 	mkdir("$global_opt{'out_dir'}/logs");
 }
 
@@ -166,6 +172,9 @@ foreach my $library (sort keys %{$global_opt{'library'}})	{
 			next if (-e "$global_opt{'out_dir'}/libraries/$library\_1.fq" && -e "$global_opt{'out_dir'}/libraries/$library\_2.fq");
 		}
 	}
+	if ($real == 1)	{
+		unless (defined($global_opt{'genome'}) && -e $global_opt{'genome'}) { die "The current iWGS run includes at least one simulated dataset (e.g. ".$library."). Make sure the reference genome is provided.\n"; }
+	}
 	if ($global_opt{'library'}->{$library}->{'simulator'} eq "pirs")	{
 		&Reads::pirs($library, \%global_opt);
 	}	elsif ($global_opt{'library'}->{$library}->{'simulator'} eq "art")	{
@@ -175,7 +184,28 @@ foreach my $library (sort keys %{$global_opt{'library'}})	{
 	}
 }
 
-chdir($global_opt{'out_dir'});
+
+#############################
+# quality control
+#############################
+
+print "##############################\n# iWGS Stage 2.5: quality control\t".localtime()."\n##############################\n\n";
+
+unless (-d "$global_opt{'out_dir'}/preprocessed")	{
+	mkdir("$global_opt{'out_dir'}/preprocessed");
+}
+
+foreach my $library (sort keys %{$global_opt{'library'}})       {
+	next unless (defined($global_opt{'library'}->{$library}->{'qc'}) && $global_opt{'library'}->{$library}->{'qc'} == 1);
+
+	unless (-d "$global_opt{'out_dir'}/preprocessed/$library")	{
+		mkdir("$global_opt{'out_dir'}/preprocessed/$library");
+	}
+	chdir("$global_opt{'out_dir'}/preprocessed/$library");
+
+	&Preprocess::QC($library, \%global_opt);
+
+}
 
 
 #############################
@@ -187,6 +217,7 @@ print "##############################\n# iWGS Stage 3: de novo assembly\t".local
 unless (-d "$global_opt{'out_dir'}/protocols")	{
 	mkdir("$global_opt{'out_dir'}/protocols");
 }
+
 unless (-d "$global_opt{'out_dir'}/assemblies")	{
 	mkdir("$global_opt{'out_dir'}/assemblies");
 }
@@ -223,6 +254,12 @@ foreach my $protocol (sort keys %{$global_opt{'protocol'}})	{
 
 print "##############################\n# iWGS Stage 4: QUAST evaluation\t".localtime()."\n##############################\n\n";
 
+unless (-d "$global_opt{'out_dir'}/evaluation")	{
+	mkdir("$global_opt{'out_dir'}/evaluation");
+}
+
+chdir("$global_opt{'out_dir'}/evaluation");
+
 # perform QUAST evaluation on assembled contigs
 &Assembly::quast("contigs", \%global_opt);
 # perform QUAST evaluation on assembled scaffolds
@@ -235,6 +272,9 @@ print "##############################\n# iWGS Stage 4: QUAST evaluation\t".local
 
 if ($cleanup)	{
 	system("rm -r $global_opt{'out_dir'}/libraries $global_opt{'out_dir'}/protocols");
+	if (-d "$global_opt{'out_dir'}/preprocessed")	{
+		system("rm -r $global_opt{'out_dir'}/preprocessed");
+	}
 }
 
 

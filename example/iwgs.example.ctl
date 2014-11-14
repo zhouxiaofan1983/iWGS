@@ -45,6 +45,21 @@ PBSIM.length_max = 					# the maximum read length (default: 25000)
 PBSIM.length_min = 					# the minimum read length (default: 100)
 
 #############################
+# Quality control options
+#############################
+QC = L001,L002,L003					# whether to perform QC on selected libraries (provide a list of library names separated by comma) or all libraries ("all")
+
+Trimmomatic.trailing = 3				# the quality score cutoff for Trimmomatic quaulity-based trimming from 3' end of reads
+Trimmomatic.adapters = example/adapters.filelist	# the file containing the list of adapter sequence files used for Trimmomatic adapter trimming 				
+Trimmomatic.minlen = 25					# the minimum read length after Trimmomatic trimming
+
+NextClip.adapter = 					# the adapter sequence for NextClip adapter trimming
+NextClip.minlen = 25					# the minimum read length after NextClip trimming
+
+Quake.kmer = 						# the k-mer size used for Quake error correction
+Quake.minlen = 25					# the minimum read length after Quake error correction
+
+#############################
 # Assembly protocol options
 #############################
 protocol = P001,ABYSS,L001,L002,L003			# assembly protocol "P001" that uses the ABYSS assembler and libraries "L001", ¡°L002¡±, and ¡°L003¡±
@@ -89,15 +104,18 @@ QUAST.gene = example/Kazachstania_africana.genes	# gene annotations to be used f
 bin.pIRS = /home/xiaofan/iWGS/tools/pIRS/pirs
 bin.ART =/home/xiaofan/iWGS/tools/ART/art_illumina
 bin.PBSIM = /home/xiaofan/iWGS/tools/PBSIM/bin/pbsim
+bin.Trimmomatic = /home/xiaofan/iWGS/tools/Trimmomatic/trimmomatic.jar
+bin.NextClip = /home/xiaofan/iWGS/tools/NextClip/bin/nextclip
+bin.Quake = /home/xiaofan/iWGS/tools/Quake/bin/quake.py
 bin.KmerGenie = /home/xiaofan/iWGS/tools/kmergenie/kmergenie
 bin.ABYSS = /home/xiaofan/iWGS/tools/ABYSS/bin/abyss-pe
 bin.ALLPATHS = /home/xiaofan/iWGS/tools/ALLPATHS-LG/bin/RunAllPathsLG
 bin.CA = /home/xiaofan/iWGS/tools/Linux-amd64/bin/PBcR
 bin.DISCOVAR = /home/xiaofan/iWGS/tools/DISCOVAR/bin/DiscovarExp
-bin.SOAPdenovo2 = /home/xiaofan/iWGS/tools/SOAPdenovo2
+bin.SOAPdenovo2 = /home/xiaofan/iWGS/tools/SOAPdenovo2/SOAPdenovo2
 bin.SPAdes = /home/xiaofan/iWGS/tools/SPAdes/bin/spades.py
 bin.dipSPAdes = /home/xiaofan/iWGS/tools/SPAdes/bin/dipspades.py
 bin.velvetg = /home/xiaofan/iWGS/tools/Velvet/velvetg
 bin.velveth = /home/xiaofan/iWGS/tools/Velvet/velveth
-bin.FastqToSam = /home/xiaofan/iWGS/tools/FastqToSam.jar
+bin.Picard = /home/xiaofan/iWGS/tools/Picard/picard.jar
 bin.QUAST = /home/xiaofan/iWGS/tools/QUAST/quast.py

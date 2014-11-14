@@ -117,7 +117,7 @@ sub validate_price	{
 sub calculate_price	{
 	(my $global_opt, my $pricing_info) = @_;
 
-	my $genome_size = &genomeSize($global_opt->{'genome'});
+	my $genome_size = ($global_opt->{'genome_size'} == 0) ? &genomeSize($global_opt->{'genome'}) : $global_opt->{'genome_size'};
 
 	# set the pricing information
 	my %price = &set_price($pricing_info);
