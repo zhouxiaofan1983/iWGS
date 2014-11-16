@@ -63,12 +63,12 @@ sub abyss	{
 				next;
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					$cmd .= "$fastq ";
 				}
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "quake")	{
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.qk.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					$cmd .= "$fastq ";
 				}
 			}
@@ -199,7 +199,7 @@ sub ca	{
 				}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
 					$cmd .= " -insertsize $global_opt->{'library'}->{$library}->{'frag_mean'} $global_opt->{'library'}->{$library}->{'frag_sd'} -mates $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq,$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq";
 					my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
-					if (-e $fastq && -s $fastq > 0)	{
+					if (-s $fastq)	{
 						my $cmd2 = "$fastqToCA_bin -libraryname $library\-se -technology $technology -reads $fastq";
 						&Utilities::execute_cmd($cmd2, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
 						$frg .= " $global_opt->{'out_dir'}/protocols/$protocol/$library\-se.frg";
@@ -207,7 +207,7 @@ sub ca	{
 				}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "quake")	{
 					$cmd .= " -insertsize $global_opt->{'library'}->{$library}->{'frag_mean'} $global_opt->{'library'}->{$library}->{'frag_sd'} -mates $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.qk.fq,$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.qk.fq";
 					my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.qk.fq";
-					if (-e $fastq && -s $fastq > 0)	{
+					if (-s $fastq)	{
 						my $cmd2 = "$fastqToCA_bin -libraryname $library\-se -technology $technology -reads $fastq";
 						&Utilities::execute_cmd($cmd2, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
 						$frg .= " $global_opt->{'out_dir'}/protocols/$protocol/$library\-se.frg";
@@ -299,7 +299,7 @@ sub soapdenovo2	{
 				push @conf, "q1=$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq\n";
 				push @conf, "q2=$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq\n";
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					push @conf, "reverse_seq=0\n";
 					push @conf, "asm_flags=1\n";
 					push @conf, "q=$fastq\n";
@@ -308,7 +308,7 @@ sub soapdenovo2	{
 				push @conf, "q1=$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.qk.fq\n";
 				push @conf, "q2=$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.qk.fq\n";
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.qk.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					push @conf, "reverse_seq=0\n";
 					push @conf, "asm_flags=1\n";
 					push @conf, "q=$fastq\n";
@@ -397,15 +397,15 @@ sub spades	{
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
 				$libs .= " --$read_type"."$number{$read_type}\-1 $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq --$read_type"."$number{$read_type}\-2 $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq";
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
-				if (-e $fastq && -s $fastq > 0)	{
-					$libs .= "--s$number{'se'} $fastq";
+				if (-s $fastq)	{
+					$libs .= " --s$number{'se'} $fastq";
 					$number{'se'}++;
 				}
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "quake")	{
 				$libs .= " --$read_type"."$number{$read_type}\-1 $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.qk.fq --$read_type"."$number{$read_type}\-2 $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.qk.fq";
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.qk.fq";
-				if (-e $fastq && -s $fastq > 0)	{
-					$libs .= "--s$number{'se'} $fastq";
+				if (-s $fastq)	{
+					$libs .= " --s$number{'se'} $fastq";
 					$number{'se'}++;
 				}
 			}
@@ -498,14 +498,14 @@ sub dipspades	{
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
 				$libs .= " --$read_type"."$number{$read_type}\-1 $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq --$read_type"."$number{$read_type}\-2 $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq";
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					$libs .= "--s$number{'se'} $fastq";
 					$number{'se'}++;
 				}
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "quake")	{
 				$libs .= " --$read_type"."$number{$read_type}\-1 $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.qk.fq --$read_type"."$number{$read_type}\-2 $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.qk.fq";
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.qk.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					$libs .= "--s$number{'se'} $fastq";
 					$number{'se'}++;
 				}
@@ -603,14 +603,14 @@ sub velvet	{
 			}       elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")   {
 				@fastq = ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq");
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					$cmd .= " -fastq -short$lib_num $fastq";
 					$lib_num++;
 				}
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "quake") {
 				@fastq = ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.qk.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.qk.fq");
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.qk.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					$cmd .= " -fastq -short$lib_num $fastq";
 					$lib_num++;
 				}
@@ -627,14 +627,14 @@ sub velvet	{
 			}       elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")   {
 				@fastq = ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq");
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					$cmd .= " -fastq -short$lib_num $fastq";
 					$lib_num++;
 				}
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "nextclip") {
 				@fastq = ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq");
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					$cmd .= " -fastq -short$lib_num $fastq";
 					$lib_num++;
 				}
@@ -705,13 +705,13 @@ sub kmergenie	{
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
 				system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq >> $protocol.fq");
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					system("cat $fastq >> $protocol.fq");
 				}
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "quake")	{
 				system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.qk.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.qk.fq >> $protocol.fq");
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.qk.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					system("cat $fastq >> $protocol.fq");
 				}
 			}
@@ -722,13 +722,13 @@ sub kmergenie	{
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
 				system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq >> $protocol.fq");
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					system("cat $fastq >> $protocol.fq");
 				}
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "nextclip")	{
 				system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq >> $protocol.fq");
 				my $fastq = "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq";
-				if (-e $fastq && -s $fastq > 0)	{
+				if (-s $fastq)	{
 					system("cat $fastq >> $protocol.fq");
 				}
 			}

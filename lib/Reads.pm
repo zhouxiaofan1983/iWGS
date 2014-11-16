@@ -54,9 +54,13 @@ sub pirs	{
 	$cmd .= " --output-prefix=$library $ref";
 
 	&Utilities::execute_cmd($cmd, "$out_dir/logs/$library.simulation.log");
-	system("mv $library\_$lib_opt->{'read_length'}\_$lib_opt->{'frag_mean'}\_1.fq $library\_1.fq");
-	system("mv $library\_$lib_opt->{'read_length'}\_$lib_opt->{'frag_mean'}\_2.fq $library\_2.fq");
-	print "The simulation of library $library is finished successfully!\n\n";
+	if (-s "$library\_$lib_opt->{'read_length'}\_$lib_opt->{'frag_mean'}\_1.fq" && -s "$library\_$lib_opt->{'read_length'}\_$lib_opt->{'frag_mean'}\_2.fq")	{
+		system("mv $library\_$lib_opt->{'read_length'}\_$lib_opt->{'frag_mean'}\_1.fq $library\_1.fq");
+		system("mv $library\_$lib_opt->{'read_length'}\_$lib_opt->{'frag_mean'}\_2.fq $library\_2.fq");
+		print "The simulation of library $library is finished successfully!\n\n";
+	}	else	{
+		print "The simulation of library $library failed!\n\n";
+	}
 
 	return;
 }
@@ -100,7 +104,11 @@ sub art	{
 	}
 
 	&Utilities::execute_cmd($cmd, "$out_dir/logs/$library.simulation.log");
-	print "The simulation of library $library is finished successfully!\n\n";
+	if (($lib_opt->{'read_type'} eq "se" && -s "$library.fq") || (($lib_opt->{'read_type'} eq "pe" || $lib_opt->{'read_type'} eq "mp") && -s "$library\_1.fq" && -s "$library\_2.fq"))	{
+		print "The simulation of library $library is finished successfully!\n\n";
+	}	else	{
+		print "The simulation of library $library failed!\n\n";
+	}
 
 	return;
 }
@@ -137,7 +145,11 @@ sub pbsim	{
 	&Utilities::execute_cmd($cmd, "$out_dir/logs/$library.simulation.log");
 	system("cat pbsim_tmp/*.fastq > $library.fq");
 	system("rm -rf pbsim_tmp");
-	print "The simulation of library $library is finished successfully!\n\n";
+	if (-s "$library.fq")	{
+		print "The simulation of library $library is finished successfully!\n\n";
+	}	else	{
+		print "The simulation of library $library failed!\n\n";
+	}
 
 	return;
 }

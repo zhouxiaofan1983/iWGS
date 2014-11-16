@@ -353,7 +353,7 @@ sub qc_setup	{
 	
 	# check if QC has been enabled for all libraries mentioned in the adapter sequence file
 	if (%adapter)	{
-		push @{$warn_msg}, "\tQC is not enabled for ".(join ", ", sort keys %adapter).", the adapter sequences will be ignored.\n";
+		push @{$warn_msg}, "\tQC is not enabled for ".(join ", ", sort keys %adapter).", the adapter sequences will be ignored.\n\n";
 	}
 	
 	return;

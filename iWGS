@@ -204,7 +204,6 @@ foreach my $library (sort keys %{$global_opt{'library'}})       {
 	chdir("$global_opt{'out_dir'}/preprocessed/$library");
 
 	&Preprocess::QC($library, \%global_opt);
-
 }
 
 

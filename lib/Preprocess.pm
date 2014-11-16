@@ -10,7 +10,7 @@ sub QC	{
 
 	my $lib_opt = $global_opt->{'library'}->{$library};
 	
-	print "Starts quality control of the library $library:\t".localtime()."\n";
+	print "Starts QC of the library $library:\t".localtime()."\n";
 
 	$lib_opt->{'qc'} = "original";
 
@@ -24,7 +24,7 @@ sub QC	{
 		&quake($library, $global_opt);
 	}
 
-	print "Quality control of the library $library finished.\n";
+	print "Quality control of the library $library finished.\n\n";
 
 	return;
 }
@@ -35,7 +35,7 @@ sub trimmomatic	{
 	my $lib_opt = $global_opt->{'library'}->{$library};
 
 	# set command to convert all fastq to phred33
-	my $cmd = "java -jar $global_opt->{'bin'}->{'trimmomatic'} ".uc($lib_opt->{'read_type'})." -threads $global_opt->{'threads'}";
+	my $cmd = "java -jar $global_opt->{'bin'}->{'trimmomatic'} ".(($lib_opt->{'read_type'} eq "se") ? "SE": "PE")." -threads $global_opt->{'threads'}";
 	if ($lib_opt->{'read_type'} eq "se")	{
 		$cmd .= " $global_opt->{'out_dir'}/libraries/$library.fq $library.fq TOPHRED33";
 	}	else	{
@@ -53,7 +53,7 @@ sub trimmomatic	{
 	print "\tConversion to Phred33 finished.\n";
 
 	# set command for Trimmomatic trimming
-	$cmd = "java -jar $global_opt->{'bin'}->{'trimmomatic'} ".uc($lib_opt->{'read_type'})." -threads $global_opt->{'threads'}";
+	$cmd = "java -jar $global_opt->{'bin'}->{'trimmomatic'} ".(($lib_opt->{'read_type'} eq "se") ? "SE": "PE")." -threads $global_opt->{'threads'}";
 	# set input and output file names for SE and PE/MP data separately
 	if ($lib_opt->{'read_type'} eq "se")    {
 		$cmd .= " $library.fq $library.tm.fq";
@@ -76,8 +76,10 @@ sub trimmomatic	{
 	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$library.QC.log");
 
 	# combine unpaired reads
-	system("cat $library\_1.tm-se.fq $library\_2.tm-se.fq > $library.tm.fq");
-	system("rm $library\_1.tm-se.fq $library\_2.tm-se.fq");
+	unless ($lib_opt->{'read_type'} eq "se")	{
+		system("cat $library\_1.tm-se.fq $library\_2.tm-se.fq > $library.tm.fq");
+		system("rm $library\_1.tm-se.fq $library\_2.tm-se.fq");
+	}
 
 	# update the last QC task performed
 	$lib_opt->{'qc'} = "trimmomatic";
@@ -135,7 +137,6 @@ sub quake	{
 	
 	# estimate k-mer size if not provided
 	if ($lib_opt->{'qk-kmer'} == 0)	{
-		mkdir("quake_tmp");
 		my $genomeSize = ($global_opt->{'genome_size'} == 0) ? &Utilities::genomeSize($global_opt->{'genome'}) : $global_opt->{'genome_size'};
 		$lib_opt->{'qk-kmer'} = int(log(200*$genomeSize)/log(4) + 0.5);
 	}
@@ -158,8 +159,11 @@ sub quake	{
 		}	elsif ($lib_opt->{'read_type'} eq "pe")	{
 			system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq $library\_1.fq");
 			system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq $library\_2.fq");
-			system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq $library.fq");
-			print QUAKE "$library\_1.fq $library\_2.fq\n$library.fq\n";
+			print QUAKE "$library\_1.fq $library\_2.fq\n";
+			if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq")	{
+				system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq $library.fq");
+				print QUAKE "$library.fq\n";
+			}
 		}
 	}
 	close(QUAKE);
@@ -174,16 +178,21 @@ sub quake	{
 	# check if Quake runs into error
 	my $err = 1;
 	if ($lib_opt->{'read_type'} eq "se")	{
-		if (-e "$library.cor.fq")	{
+		if (-s "$library.cor.fq")	{
 			system("mv $library.cor.fq ../$library.qk.fq");
 			$err = 0;
 		}
 	}	elsif ($lib_opt->{'read_type'} eq "pe")	{
-		if (-e "$library\_1.cor.fq")	{
+		if (-s "$library\_1.cor.fq" && -s "$library\_2.fq")	{
 			system("mv $library\_1.cor.fq ../$library\_1.qk.fq");
 			system("mv $library\_2.cor.fq ../$library\_2.qk.fq");
-			system("cat $library\_1.cor_single.fq $library\_2.cor_single.fq > ../$library.qk.fq");
-			if ($lib_opt->{'qc'} eq "trimmomatic")	{
+			if (-s "$library\_1.cor_single.fq")	{
+				system("cat $library\_1.cor_single.fq > ../$library.qk.fq");
+			}
+			if (-s "$library\_2.cor_single.fq")	{
+				system("cat $library\_2.cor_single.fq >> ../$library.qk.fq");
+			}
+			if (-s "$library.cor.fq")	{
 				system("cat $library.cor.fq >> ../$library.qk.fq");
 			}
 			$err = 0;
@@ -191,7 +200,7 @@ sub quake	{
 	}
 	
 	if ($err)	{
-		print "\tWARNING: No corrected reads found, Quake error correction failed.\n\n";
+		print "\tWARNING: No corrected reads found, Quake error correction failed.\n";
 	}	else	{
 		$lib_opt->{'qc'} = "quake";
 		print "\tQuake error correction finished.\n";
