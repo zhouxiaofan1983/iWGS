@@ -29,6 +29,31 @@ sub execute_cmd {
 	return;
 }
 
+#############################
+# execute system command2 - modified for bwa
+#############################
+sub execute_cmd2 {
+	(my $cmd, my $log) = @_;
+
+	print "\tCommand starts: \"$cmd\"\n";
+	my $start_time = time();
+	system("/usr/bin/time -p -o time.info $cmd 2>>$log");
+	my $end_time = time();
+
+	my $timeinfo;
+	open TIME, "< time.info" or die "Can't open time.info!\n";
+	while (<TIME>)	{
+		if (/sys\s*([\d\.]+)/ || /user\s*([\d\.]+)/)	{
+			$timeinfo += $1;
+		}
+	}
+	close (TIME);
+	system("rm time.info");	
+
+	print "\tCommand finished! All information saved to $log\n\tTime used: ".($end_time - $start_time)." seconds in real time, $timeinfo seconds in CPU time\n";
+
+	return;
+}
 
 #############################
 # set prices of sequencing

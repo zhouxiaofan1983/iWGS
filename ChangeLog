@@ -1,3 +1,13 @@
+Version 0.6	2014/11/18
+	- added "pbCNS" option for CA assembler to allow users choose between
+	Falcon and PDBAGCON
+	- added support for illumina-only assembly using CA
+	- added support for SGA assembler
+	- added support for MSRCA assembler
+	- changed the way that real datasets are incorporated: all real data
+	should be put in the "real_data" folder under the designated output
+	directory
+
 Version 0.5	2014/11/14
 	- added "QC" related options in the control file to carry out quality/
 	adapter trimming and error correction on reads before assembly

@@ -5,6 +5,20 @@ use warnings;
 
 use Utilities;
 
+sub simulation	{
+	(my $library, my $global_opt, my $overwrite) = @_;
+
+	if ($global_opt->{'library'}->{$library}->{'simulator'} eq "pirs")        {
+		&pirs($library, $global_opt);	
+	}	elsif ($global_opt->{'library'}->{$library}->{'simulator'} eq "art")      {
+		&art($library, $global_opt);
+	}       elsif ($global_opt->{'library'}->{$library}->{'simulator'} eq "pbsim")    {
+		&pbsim($library, $global_opt);
+	}
+
+	return;
+}
+
 #############################
 # Illumina reads simulation using pIRS
 #############################

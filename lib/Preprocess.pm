@@ -5,8 +5,56 @@ use warnings;
 
 use Utilities;
 
+sub prepare_real	{
+	(my $library, my $global_opt, my $overwrite) = @_;
+
+	# set command to convert all fastq to phred33
+	my $cmd = "java -jar $global_opt->{'bin'}->{'trimmomatic'} ".(($global_opt->{'library'}->{$library}->{'read_type'} eq "se") ? "SE": "PE")." -threads $global_opt->{'threads'}";
+	if ($global_opt->{'library'}->{$library}->{'read_type'} eq "se")	{
+		if (-e "$global_opt->{'out_dir'}/real_data/$library.fq" && !($overwrite == 0 && -e "$library.fq"))	{
+			$cmd .= " $global_opt->{'out_dir'}/real_data/$library.fq $library.fq TOPHRED33";
+		}	else	{
+			return 0;
+		}
+	}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "pe" || $global_opt->{'library'}->{$library}->{'read_type'} eq "mp")	{
+		if (-e "$global_opt->{'out_dir'}/real_data/$library\_1.fq" || -e "$global_opt->{'out_dir'}/real_data/$library\_2.fq")	{
+			if (-e "$global_opt->{'out_dir'}/real_data/$library\_1.fq" && -e "$global_opt->{'out_dir'}/real_data/$library\_2.fq")	{
+				unless  ($overwrite == 0 && -e "$library\_1.fq" && -e "$library\_2.fq")	{
+					$cmd = " $global_opt->{'out_dir'}/real_data/$library\_1.fq $global_opt->{'out_dir'}/real_data/$library\_2.fq $library\_1.fq temp_1.fq $library\_2.fq temp_2.fq TOPHRED33";
+				}
+			}	else	{
+				die "ERROR: the real dataset $library is a PE library but both ends do not exist.\n";
+			}
+		}	else	{
+			return 0;
+		}
+	}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "clr")	{
+		if (-e "$global_opt->{'out_dir'}/real_data/$library.fq")	{
+			unless (-e "$library.fq")	{
+				system("ln -s \"$global_opt->{'out_dir'}/real_data/$library.fq\" $library.fq");
+			}
+			return 1;
+		}	else	{
+			return 0;
+		}
+	}
+
+	# run phred conversion command
+	print "Convert real dataset $library to Phred33:\n";
+	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$library.prep_real.log");
+	
+	# cleanup empty temp files
+	unless ($global_opt->{'library'}->{$library}->{'read_type'} eq "se")	{
+		system("rm temp_1.fq temp_2.fq");
+	}
+
+	print "Conversion to Phred33 finished.\n";
+
+	return 1;
+}
+
 sub QC	{
-	(my $library, my $global_opt) = @_;
+	(my $library, my $global_opt, my $overwrite) = @_;
 
 	my $lib_opt = $global_opt->{'library'}->{$library};
 	
@@ -15,13 +63,35 @@ sub QC	{
 	$lib_opt->{'qc'} = "original";
 
 	if (defined($lib_opt->{'tm-minlen'}))	{
-		&trimmomatic($library, $global_opt);
+		if ($lib_opt->{'read_type'} eq "se" && !($overwrite == 0 && -e "$library.tm.fq"))	{
+			if (-e "$library.tm.fq") { system("rm $library.tm.fq"); }
+			&trimmomatic($library, $global_opt);
+		}	elsif (($lib_opt->{'read_type'} eq "pe" || $lib_opt->{'read_type'} eq "mp") && !($overwrite == 0 && -e "$library\_1.tm.fq" && -e "$library\_2.tm.fq"))	{
+			if (-e "$library\_1.tm.fq") { system("rm $library\_1.tm.fq"); }
+			if (-e "$library\_2.tm.fq") { system("rm $library\_2.tm.fq"); }
+			if (-e "$library.tm.fq") { system("rm $library.tm.fq"); }
+			&trimmomatic($library, $global_opt);
+		}
 	}
+
 	if (defined($lib_opt->{'nc-minlen'}))	{
-		&nextclip($library, $global_opt);
+		unless ($overwrite == 0 && -e "$library\_1.nc.fq" && -e "$library\_2.nc.fq")	{
+			if (-e "$library\_1.nc.fq") { system("rm $library\_1.nc.fq"); }
+			if (-e "$library\_2.nc.fq") { system("rm $library\_2.nc.fq"); }
+			&nextclip($library, $global_opt);
+		}
 	}
+
 	if (defined($lib_opt->{'qk-minlen'}))	{
-		&quake($library, $global_opt);
+		if ($lib_opt->{'read_type'} eq "se" && !($overwrite == 0 && -e "$library.qk.fq"))	{
+			if (-e "$library.qk.fq") { system("rm $library.qk.fq"); }
+			&quake($library, $global_opt);
+		}	elsif (($lib_opt->{'read_type'} eq "pe" || $lib_opt->{'read_type'} eq "mp") && !($overwrite == 0 && -e "$library\_1.qk.fq" && -e "$library\_2.qk.fq"))	{
+			if (-e "$library\_1.qk.fq") { system("rm $library\_1.qk.fq"); }
+			if (-e "$library\_2.qk.fq") { system("rm $library\_2.qk.fq"); }
+			if (-e "$library.qk.fq") { system("rm $library.qk.fq"); }
+			&quake($library, $global_opt);
+		}
 	}
 
 	print "Quality control of the library $library finished.\n\n";
@@ -34,26 +104,8 @@ sub trimmomatic	{
 	
 	my $lib_opt = $global_opt->{'library'}->{$library};
 
-	# set command to convert all fastq to phred33
-	my $cmd = "java -jar $global_opt->{'bin'}->{'trimmomatic'} ".(($lib_opt->{'read_type'} eq "se") ? "SE": "PE")." -threads $global_opt->{'threads'}";
-	if ($lib_opt->{'read_type'} eq "se")	{
-		$cmd .= " $global_opt->{'out_dir'}/libraries/$library.fq $library.fq TOPHRED33";
-	}	else	{
-		$cmd .= " $global_opt->{'out_dir'}/libraries/$library\_1.fq $global_opt->{'out_dir'}/libraries/$library\_2.fq $library\_1.fq temp_1.fq $library\_2.fq temp_2.fq TOPHRED33";
-	}
-
-	# run phred conversion command
-	print "\tConversion to Phred33 starts:\n";
-	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$library.QC.log");
-	
-	# cleanup empty temp files
-	unless ($lib_opt->{'read_type'} eq "se")	{
-		system("rm temp_1.fq temp_2.fq");
-	}
-	print "\tConversion to Phred33 finished.\n";
-
 	# set command for Trimmomatic trimming
-	$cmd = "java -jar $global_opt->{'bin'}->{'trimmomatic'} ".(($lib_opt->{'read_type'} eq "se") ? "SE": "PE")." -threads $global_opt->{'threads'}";
+	my $cmd = "java -jar $global_opt->{'bin'}->{'trimmomatic'} ".(($lib_opt->{'read_type'} eq "se") ? "SE": "PE")." -threads $global_opt->{'threads'}";
 	# set input and output file names for SE and PE/MP data separately
 	if ($lib_opt->{'read_type'} eq "se")    {
 		$cmd .= " $library.fq $library.tm.fq";

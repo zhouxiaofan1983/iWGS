@@ -69,9 +69,16 @@ sub init_global_opt	{
 			"ploidy" => 1,
 		},
 		"ca" => {
+			"pbcns" => 1,
 			"sensitive" => 0,
 		},
 		"discovar" => undef,
+		"masurca" => undef,
+		"sga" => {
+			"kmer" => 31,
+			"min-overlap" => 45,,
+			"assemble-overlap" => 75,
+		},
 		"soapdenovo2" => {
 			"kmer" => 0,
 			"option" => "–F –R –E –w –u",
@@ -108,15 +115,23 @@ sub init_global_opt	{
 	$global_opt{'bin'}->{'kmergenie'} = (-e "$root_dir/tools/kmergenie/kmergenie") ? "$root_dir/tools/kmergenie/kmergenie" : File::Which::which("kmergenie");
 	$global_opt{'bin'}->{'abyss'} = (-e "$root_dir/tools/ABYSS/bin/abyss-pe") ? "$root_dir/tools/ABYSS/bin/abyss-pe" : File::Which::which("abyss-pe");
 	$global_opt{'bin'}->{'allpaths'} = (-e "$root_dir/tools/ALLPATHS-LG/bin/RunAllPathsLG") ? "$root_dir/tools/ALLPATHS-LG/bin/RunAllPathsLG" : File::Which::which("RunAllPathsLG");
-	$global_opt{'bin'}->{'ca'} = (-e "$root_dir/tools/CA/bin/PBcR") ? "$root_dir/tools/CA/bin/PBcR" : File::Which::which("PBcR");
+	$global_opt{'bin'}->{'pbcr'} = (-e "$root_dir/tools/CA/bin/PBcR") ? "$root_dir/tools/CA/bin/PBcR" : File::Which::which("PBcR");
+	$global_opt{'bin'}->{'runca'} = (-e "$root_dir/tools/CA/bin/runCA") ? "$root_dir/tools/CA/bin/runCA" : File::Which::which("runCA");
 	$global_opt{'bin'}->{'discovar'} = (-e "$root_dir/tools/DISCOVAR/bin/DiscovarExp") ? "$root_dir/tools/DISCOVAR/bin/Discovarexp" : File::Which::which("Discovarexp");
+	$global_opt{'bin'}->{'masurca'} = (-e "$root_dir/tools/MaSuRCA/bin/masurca") ? "$root_dir/tools/MaSuRCA/bin/masurca" : File::Which::which("masurca");
+	$global_opt{'bin'}->{'sga'} = (-e "$root_dir/tools/SGA/bin/sga") ? "$root_dir/tools/SGA/bin/sga" : File::Which::which("sga");
 	$global_opt{'bin'}->{'soapdenovo2'} = (-e "$root_dir/tools/SOAPdenovo2/SOAPdenovo2") ? "$root_dir/tools/SOAPdenovo2/SOAPdenovo2" : File::Which::which("SOAPdenovo2");
 	$global_opt{'bin'}->{'spades'} = (-e "$root_dir/tools/SPAdes/bin/spades.py") ? "$root_dir/tools/SPAdes/bin/spades.py" : File::Which::which("spades.py");
 	$global_opt{'bin'}->{'dipspades'} = (-e "$root_dir/tools/SPAdes/bin/dipspades.py") ? "$root_dir/tools/dipSPAdes/bin/dipspades.py" : File::Which::which("dipspades.py");
 	$global_opt{'bin'}->{'velvetg'} = (-e "$root_dir/tools/Velvet/velvetg") ? "$root_dir/tools/Velvet/velvetg" : File::Which::which("velvetg");
 	$global_opt{'bin'}->{'velveth'} = (-e "$root_dir/tools/Velvet/velveth") ? "$root_dir/tools/Velvet/velveth" : File::Which::which("velveth");
-	$global_opt{'bin'}->{'picard'} = (-e "$root_dir/tools/Picard/picard.jar") ? "$root_dir/tools/Picard/picard.jar" : File::Which::which("picard.jar");
 	$global_opt{'bin'}->{'quast'} = (-e "$root_dir/tools/QUAST/quast.py") ? "$root_dir/tools/QUAST/quast.py" : File::Which::which("quast.py");
+	$global_opt{'bin'}->{'bank-transact'} = (-e "$root_dir/tools/dependencies/bank-transact") ? "$root_dir/tools/dependencies/bank-transact" : File::Which::which("bank-transact");
+	$global_opt{'bin'}->{'blasr'} = (-e "$root_dir/tools/dependencies/blasr") ? "$root_dir/tools/dependencies/blasr" : File::Which::which("blasr");
+	$global_opt{'bin'}->{'bwa'} = (-e "$root_dir/tools/dependencies/bwa") ? "$root_dir/tools/dependencies/bwa" : File::Which::which("bwa");
+	$global_opt{'bin'}->{'pbdagcon'} = (-e "$root_dir/tools/dependencies/pbdagcon") ? "$root_dir/tools/dependencies/pbdagcon" : File::Which::which("pbdagcon");
+	$global_opt{'bin'}->{'picard'} = (-e "$root_dir/tools/dependencies/picard.jar") ? "$root_dir/tools/dependencies/picard.jar" : File::Which::which("picard.jar");
+	$global_opt{'bin'}->{'samtools'} = (-e "$root_dir/tools/dependencies/samtools") ? "$root_dir/tools/dependencies/samtools" : File::Which::which("samtools");
 		
 	$global_opt{'pbsim'}->{'model_qc'} = (defined($global_opt{'bin'}->{'pbsim'})) ? dirname($global_opt{'bin'}->{'pbsim'})."/../data/model_qc_clr" : undef;
 
@@ -242,8 +257,8 @@ sub check_global_opt	{
 			&qc_setup($global_opt, \@err_msg, \@warn_msg);
 		}
 		&check_libraries($global_opt, \@err_msg, \@warn_msg);
-		&check_protocols($global_opt, \@err_msg);
-		&check_compatibility($global_opt->{'library'}, $global_opt->{'protocol'}, \@err_msg);
+		&check_protocols($global_opt, \@err_msg, \@warn_msg);
+		&check_compatibility($global_opt, \@err_msg, \@warn_msg);
 	}	elsif (defined($global_opt->{'library'}) || defined($global_opt->{'protocol'}))	{
 		push @err_msg, "\tPlease specify at least one library and one assembly protocol together, or leave both blank to run with default settings.\n";
 	}	else	{
@@ -410,6 +425,7 @@ sub check_libraries	{
 		}	else	{
 			push @err_msg, "\t\tmust define a read type.\n";
 		}
+	
 		if (@warn_msg)	{
 			push @{$warn_msg}, "\tWarning(s) detected in the library $library:\n";
 			push @{$warn_msg}, @warn_msg;
@@ -585,7 +601,7 @@ sub check_library	{
 # validate assembly protocols
 #############################
 sub check_protocols	{
-	(my $global_opt, my $err_msg) = @_;
+	(my $global_opt, my $err_msg, my $warn_msg) = @_;
 	
 	# set the assembler names
 	my %assembler = (
@@ -593,6 +609,7 @@ sub check_protocols	{
 		"allpaths" => "ALLPATHS-LG",
 		"ca" => "Celera Assembler",
 		"discovar" => "DISCOVAR de novo",
+		"sga" => "SGA",
 		"soapdenovo2" => "SOAPdenovo2",
 		"spades" => "SPAdes",
 		"dipspades" => "dipSPAdes",
@@ -631,8 +648,8 @@ sub check_protocols	{
 
 		# check the availability of the assembler
 		if ($assembler eq "velvet")	{
-			unless (defined($global_opt->{'bin'}->{'velvetg'}) && -e $global_opt->{'bin'}->{'velvetg'}) { push @err_msg, "\t\tthe assembler velvetg is not available.\n"; }
-			unless (defined($global_opt->{'bin'}->{'velveth'}) && -e $global_opt->{'bin'}->{'velveth'}) { push @err_msg, "\t\tthe assembler velveth is not available.\n"; }
+			unless (defined($global_opt->{'bin'}->{'velvetg'}) && -e $global_opt->{'bin'}->{'velvetg'}) { push @err_msg, "\t\tthe assembler Velvet (\"velvetg\") is not available.\n"; }
+			unless (defined($global_opt->{'bin'}->{'velveth'}) && -e $global_opt->{'bin'}->{'velveth'}) { push @err_msg, "\t\tthe assembler Velvet (\"velveth\") is not available.\n"; }
 		}	else	{
 			unless (defined($global_opt->{'bin'}->{$assembler}) && -e $global_opt->{'bin'}->{$assembler}) { push @err_msg, "\t\tthe assembler $assembler{$assembler} is not available.\n"; }
 		}
@@ -648,7 +665,12 @@ sub check_protocols	{
 		}	elsif ($assembler eq "allpaths")	{
 			unless ($protocols->{$protocol}->{'ploidy'} =~ /^\d+$/ && $protocols->{$protocol}->{'ploidy'} > 0) { push @err_msg, "\t\tthe option \"ploidy\" should be a positive integer.\n"; }
 		}	elsif ($assembler eq "ca")	{
+			unless ($protocols->{$protocol}->{'pbcns'} =~ /^[01]$/) { push @err_msg, "\t\tthe option \"pbCNS\" should be either \"0\" or \"1\".\n"; }
 			unless ($protocols->{$protocol}->{'sensitive'} =~ /^[01]$/) { push @err_msg, "\t\tthe option \"sensitive\" should be either \"0\" or \"1\".\n"; }
+		}	elsif ($assembler eq "sga")	{
+			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/ && $protocols->{$protocol}->{'kmer'} > 0) { push @err_msg, "\t\tthe option \"kmer\" should be a positive integer.\n"; }
+			unless ($protocols->{$protocol}->{'min-overlap'} =~ /^\d+$/ && $protocols->{$protocol}->{'min-overlap'} > 0) { push @err_msg, "\t\tthe option \"min-overlap\" should be a positive integer.\n"; }
+			unless ($protocols->{$protocol}->{'assemble-overlap'} =~ /^\d+$/ && $protocols->{$protocol}->{'assemble-overlap'} > 0) { push @err_msg, "\t\tthe option \"assemble-overlap\" should be a positive integer.\n"; }
 		}	elsif ($assembler eq "soapdenovo2")	{
 			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/ && ($protocols->{$protocol}->{'kmer'} == 0 || $protocols->{$protocol}->{'kmer'}%2 == 1)) { push @err_msg, "\t\tthe option \"kmer\" should be \"0\" or an odd number.\n"; }
 		}	elsif ($assembler eq "spades" || $assembler eq "dipspades")	{
@@ -671,10 +693,13 @@ sub check_protocols	{
 # check the compatibility of libraries and assembly protocols
 #############################
 sub check_compatibility	{
-	(my $libraries, my $protocols, my $err_msg) = @_;
+	(my $global_opt, my $err_msg, my $warn_msg) = @_;
+
+	my $libraries = $global_opt->{'library'};
+	my $protocols = $global_opt->{'protocol'};
 
 	foreach my $protocol (sort keys %{$protocols})	{
-		my @err_msg;
+		my @err_msg; my @warn_msg;
 
 		my %read_type;
 		foreach my $library (@{$protocols->{$protocol}->{'library'}})	{
@@ -712,17 +737,30 @@ sub check_compatibility	{
 				}
 			}
 			if (exists $read_type{'clr'})	{
+				unless (defined($global_opt->{'bin'}->{'pbcr'}) && -e $global_opt->{'bin'}->{'pbcr'}) { push @err_msg, "\t\tthe assembler CA (\"PBcR\") is not available.\n"; }
 				if (exists $read_type{'se'} || exists $read_type{'pe'})	{
 					unless ($clr_depth >= 10)	{
-						push @err_msg, "\t\tCelera Assembler requires at least 10x coverage PacBio reads for hybrid assembly.\n";
+						push @warn_msg, "\t\tCelera Assembler recommends at least 10x coverage PacBio reads for hybrid assembly.\n";
+					}
+					unless (defined($global_opt->{'bin'}->{'bank-transact'}))	{
+						push @warn_msg, "\t\tCelera Assembler requires \"bank-transact\" for hybrid assembly, please install AMOS.\n";
 					}
 				}	else	{
 					unless ($clr_depth >= 50)	{
-						push @err_msg, "\t\tCelera Assembler requires at least 50x coverage PacBio reads for self-correction assembly.\n";
+						push @err_msg, "\t\tCelera Assembler recommands at least 50x coverage PacBio reads for self-correction assembly.\n";
+					}
+					if ($protocols->{$protocol}->{'pbcns'} == 0)	{
+						unless (defined($global_opt->{'bin'}->{'blasr'}) && defined($global_opt->{'bin'}->{'pbdagcon'}))	{
+							push @warn_msg, "\t\tCelera Assembler requires both \"blasr\" and \"pbdagcon\" for self-correction assembly using PBDAGCON. Will swtich to Falcon.\n";
+							$protocols->{$protocol}->{'pbcns'} = 1;
+						}
 					}
 				}
 			}	else	{
-				push @err_msg, "\t\tCelera Assembler requires at least one PacBio library.\n";
+				unless (defined($global_opt->{'bin'}->{'runca'}) && -e $global_opt->{'bin'}->{'runca'}) { push @err_msg, "\t\tthe assembler CA (\"runCA\") is not available.\n"; }
+				unless (exists $read_type{'se'} || exists $read_type{'pe'})	{
+					push @err_msg, "\t\tCelera Assembler requires at least one SE/PE library for illumina-only assembly.\n";
+				}
 			}
 		}	elsif ($protocols->{$protocol}->{'assembler'} eq "discovar")  {		# a DISCOVAR de novo protocol should have a single PE library, and the insert size should be no greater than three times the read length (which should be at least 100bp)
 			if (exists $read_type{'se'} || exists $read_type{'mp'} || exists $read_type{'clr'} || scalar keys %{$read_type{'pe'}} > 1)	{
@@ -732,6 +770,20 @@ sub check_compatibility	{
 				unless ($libraries->{$pe_lib[0]}->{'read_length'} >= 100 && $libraries->{$pe_lib[0]}->{'read_length'}*3 >= $libraries->{$pe_lib[0]}->{'frag_mean'})	{
 					push @err_msg, "\t\tDiscovar de novo requires a PE library whose insert size is substantially smaller than the read length (which should be at least 100bp).\n";
 				}
+			}
+		}	elsif ($protocols->{$protocol}->{'assembler'} eq "abyss")	{	# a MaSuRCA protocol should have at least one SE/PE library, and no PacBio library
+			unless (exists $read_type{'se'} || exists $read_type{'pe'})	{
+				push @err_msg, "\t\tMaSuRCA requires at least one SE/PE library.\n";
+			}
+			if (exists $read_type{'clr'})	{
+				push @err_msg, "\t\tMaSuRCA is not compatible with PacBio reads.\n";
+			}
+		}	elsif ($protocols->{$protocol}->{'assembler'} eq "sga")	{		# a SGA protocol should have at least one SE/PE library (recommends 100bp or longer), and no PacBio library
+			unless (exists $read_type{'se'} || exists $read_type{'pe'})	{
+				push @err_msg, "\t\tSGA requires at least one SE/PE library.\n";
+			}
+			if (exists $read_type{'clr'})	{
+				push @err_msg, "\t\tSGA is not compatible with PacBio reads.\n";
 			}
 		}	elsif ($protocols->{$protocol}->{'assembler'} eq "soapdenovo2")	{	# a SOAPdenovo2 protocol should have at least one SE/PE library, and no PacBio library
 			unless (exists $read_type{'se'} || exists $read_type{'pe'})	{
@@ -757,8 +809,12 @@ sub check_compatibility	{
 			}
 		}
 		
+		if (@warn_msg)	{
+			push @{$warn_msg}, "\tCompatibility warning(s) detected in the assembly protocol $protocol:\n";
+			push @{$warn_msg}, @warn_msg;
+		}
 		if (@err_msg)	{
-			push @{$err_msg}, "\tCompatibility issue(s) detected in the assembly protocol $protocol:\n";
+			push @{$err_msg}, "\tCompatibility error(s) detected in the assembly protocol $protocol:\n";
 			push @{$err_msg}, @err_msg;
 		}
 	}	
@@ -874,8 +930,11 @@ sub read_conf_file	{
 		"kmer" => "protocol",
 		"multi-kmer" => "protocol",
 		"option" => "protocol",
+		"pbcns" => "protocol",
 		"sensitive" => "protocol",
 		"ploidy" => "protocol",
+		"min-overlap" => "protocol",
+		"assemble-overlap" => "protocol",
 		"eukaryote" => "quast",
 		"gage" => "quast",
 		"gene" => "quast",
@@ -888,15 +947,22 @@ sub read_conf_file	{
 		"kmergenie" => "bin",
 		"abyss-pe" => "bin",
 		"allpaths" => "bin",
-		"ca" => "bin",
+		"pbcr" => "bin",
+		"runca" => "bin",
 		"discovar" => "bin",
+		"masurca" => "bin",
 		"soapdenovo2" => "bin",
 		"spades" => "bin",
 		"dipspades" => "bin",
 		"velvetg" => "bin",
 		"velveth" => "bin",
-		"picard" => "bin",
 		"quast" => "bin",
+		"bank-transact" => "bin",
+		"blasr" => "bin",
+		"bwa" => "bin",
+		"pbdagcon" => "bin",
+		"picard" => "bin",
+		"samtools" => "bin",
 		"genome" => 1,
 		"genome_size" => 1,
 		"threads" => 1,
@@ -1059,9 +1125,17 @@ sub write_conf_file	{
 			push @conf, $protocol.".ploidy = $global_opt->{'protocol'}->{$protocol}->{'ploidy'}\n";
 		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "ca")	{
 			push @conf, $protocol.".assembler = CA\n";
+			push @conf, $protocol.".pbCNS = $global_opt->{'protocol'}->{$protocol}->{'pbcns'}\n";
 			push @conf, $protocol.".sensitive = $global_opt->{'protocol'}->{$protocol}->{'sensitive'}\n";
 		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "discovar")	{
 			push @conf, $protocol.".assembler = DISCOVAR\n";
+		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "masurca")	{
+			push @conf, $protocol.".assembler = MaSuRCA\n";
+		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "sga")	{
+			push @conf, $protocol.".assembler = SGA\n";
+			push @conf, $protocol.".kmer = $global_opt->{'protocol'}->{$protocol}->{'kmer'}\n";
+			push @conf, $protocol.".min-overlap = $global_opt->{'protocol'}->{$protocol}->{'min-overlap'}\n";
+			push @conf, $protocol.".assemble-overlap = $global_opt->{'protocol'}->{$protocol}->{'assemble-overlap'}\n";
 		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "soapdenovo2")	{
 			push @conf, $protocol.".assembler = SOAPdenovo2\n";
 			push @conf, $protocol.".kmer = $global_opt->{'protocol'}->{$protocol}->{'kmer'}\n";
@@ -1112,15 +1186,22 @@ sub write_conf_file	{
 	push @conf, "bin.KmerGenie = ".(defined($global_opt->{'bin'}->{'kmergenie'}) ? $global_opt->{'bin'}->{'kmergenie'} : " ")."\n";
 	push @conf, "bin.ABYSS = ".(defined($global_opt->{'bin'}->{'abyss-pe'}) ? $global_opt->{'bin'}->{'abyss-pe'} : " ")."\n";
 	push @conf, "bin.ALLPATHS = ".(defined($global_opt->{'bin'}->{'allpaths'}) ? $global_opt->{'bin'}->{'allpaths'} : " ")."\n";
-	push @conf, "bin.CA = ".(defined($global_opt->{'bin'}->{'ca'}) ? $global_opt->{'bin'}->{'ca'} : " ")."\n";
+	push @conf, "bin.PBcR = ".(defined($global_opt->{'bin'}->{'pbcr'}) ? $global_opt->{'bin'}->{'pbcr'} : " ")."\n";
+	push @conf, "bin.runCA = ".(defined($global_opt->{'bin'}->{'runca'}) ? $global_opt->{'bin'}->{'runca'} : " ")."\n";
 	push @conf, "bin.DISCOVAR = ".(defined($global_opt->{'bin'}->{'discovar'}) ? $global_opt->{'bin'}->{'discovar'} : " ")."\n";
+	push @conf, "bin.MaSuRCA = ".(defined($global_opt->{'bin'}->{'masurca'}) ? $global_opt->{'bin'}->{'masurca'} : " ")."\n";
 	push @conf, "bin.SOAPdenovo2 = ".(defined($global_opt->{'bin'}->{'soapdenovo2'}) ? $global_opt->{'bin'}->{'soapdenovo2'} : " ")."\n";
 	push @conf, "bin.SPAdes = ".(defined($global_opt->{'bin'}->{'spades'}) ? $global_opt->{'bin'}->{'spades'} : " ")."\n";
 	push @conf, "bin.dipSPAdes = ".(defined($global_opt->{'bin'}->{'dipspades'}) ? $global_opt->{'bin'}->{'dipspades'} : " ")."\n";
 	push @conf, "bin.velvetg = ".(defined($global_opt->{'bin'}->{'velvetg'}) ? $global_opt->{'bin'}->{'velvetg'} : " ")."\n";
 	push @conf, "bin.velveth = ".(defined($global_opt->{'bin'}->{'velveth'}) ? $global_opt->{'bin'}->{'velveth'} : " ")."\n";
-	push @conf, "bin.Picard = ".(defined($global_opt->{'bin'}->{'picard'}) ? $global_opt->{'bin'}->{'picard'} : " ")."\n";
 	push @conf, "bin.QUAST = ".(defined($global_opt->{'bin'}->{'quast'}) ? $global_opt->{'bin'}->{'quast'} : " ")."\n";
+	push @conf, "bin.bank-transact = ".(defined($global_opt->{'bin'}->{'bank-transact'}) ? $global_opt->{'bin'}->{'bank-transact'} : " ")."\n";
+	push @conf, "bin.BLASR = ".(defined($global_opt->{'bin'}->{'blasr'}) ? $global_opt->{'bin'}->{'blasr'} : " ")."\n";
+	push @conf, "bin.BWA = ".(defined($global_opt->{'bin'}->{'bwa'}) ? $global_opt->{'bin'}->{'bwa'} : " ")."\n";
+	push @conf, "bin.PDBAGCON = ".(defined($global_opt->{'bin'}->{'pbdagcon'}) ? $global_opt->{'bin'}->{'pbdagcon'} : " ")."\n";
+	push @conf, "bin.Picard = ".(defined($global_opt->{'bin'}->{'picard'}) ? $global_opt->{'bin'}->{'picard'} : " ")."\n";
+	push @conf, "bin.SAMtools = ".(defined($global_opt->{'bin'}->{'samtools'}) ? $global_opt->{'bin'}->{'samtools'} : " ")."\n";
 
 	open MISC_CONF, "> $cwd/misc.conf" or die "Can't write to misc.conf!";
 	print MISC_CONF @conf;
