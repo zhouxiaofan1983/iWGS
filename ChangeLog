@@ -1,3 +1,13 @@
+Version 0.8	2014/11/23
+	- add the "HMP" (High-quality Mate-Pair) read type
+	- various code modifications
+
+Version 0.7	2014/11/20
+	- added support for Minia
+	- each library is placed in its own folder under the "libraries"
+	directory
+	- minor bug fixes
+
 Version 0.6	2014/11/18
 	- added "pbCNS" option for CA assembler to allow users choose between
 	Falcon and PDBAGCON

@@ -73,15 +73,21 @@ sub init_global_opt	{
 			"sensitive" => 0,
 		},
 		"discovar" => undef,
-		"masurca" => undef,
+		"masurca" => {
+			"kmer" => 0,
+		},
+		"minia" => {
+			"kmer" => 0,
+			"min-abundance" => 0,
+		},
 		"sga" => {
 			"kmer" => 31,
-			"min-overlap" => 45,,
+			"min-overlap" => 45,
 			"assemble-overlap" => 75,
 		},
 		"soapdenovo2" => {
 			"kmer" => 0,
-			"option" => "–F –R –E –w –u",
+			"option" => "-F -R -E -w -u",
 		},
 		"spades" => {
 			"kmer" => 0,
@@ -115,14 +121,15 @@ sub init_global_opt	{
 	$global_opt{'bin'}->{'kmergenie'} = (-e "$root_dir/tools/kmergenie/kmergenie") ? "$root_dir/tools/kmergenie/kmergenie" : File::Which::which("kmergenie");
 	$global_opt{'bin'}->{'abyss'} = (-e "$root_dir/tools/ABYSS/bin/abyss-pe") ? "$root_dir/tools/ABYSS/bin/abyss-pe" : File::Which::which("abyss-pe");
 	$global_opt{'bin'}->{'allpaths'} = (-e "$root_dir/tools/ALLPATHS-LG/bin/RunAllPathsLG") ? "$root_dir/tools/ALLPATHS-LG/bin/RunAllPathsLG" : File::Which::which("RunAllPathsLG");
-	$global_opt{'bin'}->{'pbcr'} = (-e "$root_dir/tools/CA/bin/PBcR") ? "$root_dir/tools/CA/bin/PBcR" : File::Which::which("PBcR");
-	$global_opt{'bin'}->{'runca'} = (-e "$root_dir/tools/CA/bin/runCA") ? "$root_dir/tools/CA/bin/runCA" : File::Which::which("runCA");
+	$global_opt{'bin'}->{'pbcr'} = (-e "$root_dir/tools/CA/Linux-amd64/bin/PBcR") ? "$root_dir/tools/CA/Linux-amd64/bin/PBcR" : File::Which::which("PBcR");
+	$global_opt{'bin'}->{'runca'} = (-e "$root_dir/tools/CA/Linux-amd64/bin/runCA") ? "$root_dir/tools/CA/Linux-amd64/bin/runCA" : File::Which::which("runCA");
 	$global_opt{'bin'}->{'discovar'} = (-e "$root_dir/tools/DISCOVAR/bin/DiscovarExp") ? "$root_dir/tools/DISCOVAR/bin/Discovarexp" : File::Which::which("Discovarexp");
 	$global_opt{'bin'}->{'masurca'} = (-e "$root_dir/tools/MaSuRCA/bin/masurca") ? "$root_dir/tools/MaSuRCA/bin/masurca" : File::Which::which("masurca");
+	$global_opt{'bin'}->{'minia'} = (-e "$root_dir/tools/Minia/minia") ? "$root_dir/tools/Minia/minia" : File::Which::which("minia");
 	$global_opt{'bin'}->{'sga'} = (-e "$root_dir/tools/SGA/bin/sga") ? "$root_dir/tools/SGA/bin/sga" : File::Which::which("sga");
 	$global_opt{'bin'}->{'soapdenovo2'} = (-e "$root_dir/tools/SOAPdenovo2/SOAPdenovo2") ? "$root_dir/tools/SOAPdenovo2/SOAPdenovo2" : File::Which::which("SOAPdenovo2");
 	$global_opt{'bin'}->{'spades'} = (-e "$root_dir/tools/SPAdes/bin/spades.py") ? "$root_dir/tools/SPAdes/bin/spades.py" : File::Which::which("spades.py");
-	$global_opt{'bin'}->{'dipspades'} = (-e "$root_dir/tools/SPAdes/bin/dipspades.py") ? "$root_dir/tools/dipSPAdes/bin/dipspades.py" : File::Which::which("dipspades.py");
+	$global_opt{'bin'}->{'dipspades'} = (-e "$root_dir/tools/SPAdes/bin/dipspades.py") ? "$root_dir/tools/SPAdes/bin/dipspades.py" : File::Which::which("dipspades.py");
 	$global_opt{'bin'}->{'velvetg'} = (-e "$root_dir/tools/Velvet/velvetg") ? "$root_dir/tools/Velvet/velvetg" : File::Which::which("velvetg");
 	$global_opt{'bin'}->{'velveth'} = (-e "$root_dir/tools/Velvet/velveth") ? "$root_dir/tools/Velvet/velveth" : File::Which::which("velveth");
 	$global_opt{'bin'}->{'quast'} = (-e "$root_dir/tools/QUAST/quast.py") ? "$root_dir/tools/QUAST/quast.py" : File::Which::which("quast.py");
@@ -192,8 +199,8 @@ sub read_global_ctrl_file	{
 					unless ($#library == 3) { push @err_msg, "\tConfiguration for the SE library $library[0] should have 4 elements.\n"; }
 					$opt{$opt}->{$library[0]}->{'depth'} = $library[2];
 					$opt{$opt}->{$library[0]}->{'read_length'} = $library[3];
-				}	elsif ($opt{$opt}->{$library[0]}->{'read_type'} eq "pe" || $opt{$opt}->{$library[0]}->{'read_type'} eq "mp")	{
-					unless ($#library == 5) { push @err_msg, "\tConfiguration for the PE/MP library $library[0] should have 6 elements.\n"; }
+				}	elsif ($opt{$opt}->{$library[0]}->{'read_type'} =~ /^(pe|mp|hmp)$/)	{
+					unless ($#library == 5) { push @err_msg, "\tConfiguration for the PE/MP/HMP library $library[0] should have 6 elements.\n"; }
 					$opt{$opt}->{$library[0]}->{'depth'} = $library[2];
 					$opt{$opt}->{$library[0]}->{'read_length'} = $library[3];
 					$opt{$opt}->{$library[0]}->{'frag_mean'} = $library[4];
@@ -335,20 +342,21 @@ sub qc_setup	{
 				# set Trimmomatic quality trimming parameters
 				$global_opt->{'library'}->{$library}->{'tm-trailing'} = $global_opt->{'trimmomatic'}->{'trailing'};
 				$global_opt->{'library'}->{$library}->{'tm-minlen'} = $global_opt->{'trimmomatic'}->{'minlen'};
-				if ($global_opt->{'library'}->{$library}->{'read_type'} eq "se" || $global_opt->{'library'}->{$library}->{'read_type'} eq "pe")	{
-					# set adapter sequences for qualified SE/PE library
+				if ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(se|pe|hmp)$/)	{
+					# set Quake parameters for qualified SE/PE/HMP library
 					$global_opt->{'library'}->{$library}->{'qk-kmer'} = $global_opt->{'quake'}->{'kmer'};
 					$global_opt->{'library'}->{$library}->{'qk-minlen'} = $global_opt->{'quake'}->{'minlen'};
-				}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "mp")	{
-					# set adapter sequence for MP library
+				}
+				if ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(mp|hmp)$/)	{
+					# set adapter sequence for MP/HMP library
 					$global_opt->{'library'}->{$library}->{'nc-adapter'} = $global_opt->{'nextclip'}->{'adapter'};
 					$global_opt->{'library'}->{$library}->{'nc-minlen'} = $global_opt->{'nextclip'}->{'minlen'};
 				}
 			}
 			if (defined($adapter{$library}))        {
-				if ($global_opt->{'library'}->{$library}->{'read_type'} eq "se" || $global_opt->{'library'}->{$library}->{'read_type'} eq "pe") {
+				if ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(se|pe)$/) {
 					$global_opt->{'library'}->{$library}->{'tm-adapter'} = $adapter{$library};
-				}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "mp")	{
+				}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(mp|hmp)$/)	{
 					push @warn_msg, "\t\tTrimmomatic adapter trimming is not compatible with ".uc($global_opt->{'library'}->{$library}->{'read_type'})." library (use NextClip instead), will be ignored.\n";
 				}
 				delete $adapter{$library};
@@ -399,12 +407,12 @@ sub check_libraries	{
 				# check the read length, must be greater than 0
 				unless (defined($libraries->{$library}->{'read_length'}) && $libraries->{$library}->{'read_length'} =~ /^\d+$/ && $libraries->{$library}->{'read_length'} > 0) { push @err_msg, "\t\tthe read length must be a positive integer.\n"; }
 				&check_library("art", $libraries->{$library}, $global_opt, \@err_msg, \@warn_msg);
-			}	elsif ($libraries->{$library}->{'read_type'} eq "pe" || $libraries->{$library}->{'read_type'} eq "mp")	{
+			}	elsif ($libraries->{$library}->{'read_type'} =~ /^(pe|mp|hmp)$/)	{
 				# check the average and standard deviation of insert size, must be greater than 0
 				unless (defined($libraries->{$library}->{'frag_mean'}) && $libraries->{$library}->{'frag_mean'} =~ /^\d+$/ && $libraries->{$library}->{'frag_mean'} > 0) { push @err_msg, "\t\tthe average insert size should be a positive number.\n"; }
 				if ($libraries->{$library}->{'read_type'} eq "pe" && $libraries->{$library}->{'frag_mean'} >= 2000)	{
 					push @err_msg, "\t\tthe mean fragment size of a PE library should be smaller than 2kbp.\n";
-				}	elsif ($libraries->{$library}->{'read_type'} eq "mp" && $libraries->{$library}->{'frag_mean'} < 2000)	{
+				}	elsif ($libraries->{$library}->{'read_type'} =~ /^(mp|hmp)$/ && $libraries->{$library}->{'frag_mean'} < 2000)	{
 					push @err_msg, "\t\tthe mean fragment size of a MP library should not be smaller than 2kbp.\n";
 				}
 				# check the standard deviation of insert size, must be greater than 0
@@ -548,7 +556,8 @@ sub check_library	{
 	# check QC settings
 	if (defined($library->{'qc'}) && $library->{'qc'} == 1)	{
 		unless (%qc_task)	{
-			delete $library->{'qc'};
+			#delete $library->{'qc'};
+			$library->{'qc'} = 0;
 			push @{$warn_msg}, "\t\tQC is enabled for this library with NO QC task specified, will be ignored.\n";
 		}
 		if (defined($qc_task{'trimmomatic'}))	{
@@ -556,7 +565,7 @@ sub check_library	{
 			unless (!defined($library->{'tm-trailing'}) || $library->{'tm-trailing'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe threshold of Trimmomatic quality-based trimming should be an integer no less than zero.\n"; }
 			unless (!defined($library->{'tm-minlen'}) || $library->{'tm-minlen'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe minimum read length after Trimmomatic trimming should be an integer no less than zero.\n"; }
 			if (defined($library->{'tm-adapter'}))	{
-				if ($library->{'read_type'} eq "se" || $library->{'read_type'} eq "pe")	{
+				if ($library->{'read_type'} =~ /^(se|pe)$/)	{
 					# convert relatvie path to absolute path
 					if ($library->{'tm-adapter'} !~ /^\//) {
 						$library->{'tm-adapter'} = getcwd()."/".$library->{'tm-adapter'};
@@ -568,7 +577,7 @@ sub check_library	{
 			}
 		}
 		if (defined($qc_task{'nextclip'}))	{
-			if ($library->{'read_type'} eq "mp")	{
+			if ($library->{'read_type'} =~ /^(mp|hmp)$/)	{
 				unless (defined($global_opt->{'bin'}->{'nextclip'}) && -e $global_opt->{'bin'}->{'nextclip'}) { push @{$err_msg}, "\t\tthe required quality control tool NextClip is not available.\n";}
 				unless (defined($library->{'nc-adapter'}) && $library->{'nc-adapter'} =~ /^[ATCG]+$/) { push @{$err_msg}, "\t\tadapter must be a valid DNA sequence"; }
 				unless (defined($library->{'nc-minlen'}) && $library->{'nc-minlen'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe minimum read length after NextClip adapter trimming should be an integer no less than zero.\n"; }
@@ -577,7 +586,7 @@ sub check_library	{
 			}
 		}
 		if (defined($qc_task{'quake'}))	{
-			if ($library->{'read_type'} eq "se" || $library->{'read_type'} eq "pe")	{
+			if ($library->{'read_type'} =~ /^(se|pe|hmp)$/)	{
 				unless (defined($global_opt->{'bin'}->{'quake'}) && -e $global_opt->{'bin'}->{'quake'}) { push @{$err_msg}, "\t\tthe required quality control tool Quake is not available.\n";}
 				unless (defined($library->{'qk-kmer'}) && $library->{'qk-kmer'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe k-mer size for Quake error correction should be an integer no less than zero.\n"; }
 				unless (defined($library->{'qk-minlen'}) && $library->{'qk-minlen'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe minimum read length after Quake error correction should be an integer no less than zero.\n"; }
@@ -586,6 +595,7 @@ sub check_library	{
 			}
 		}
 	}	else	{
+		$library->{'qc'} = 0;
 		if (%qc_task)	{
 			foreach my $key (%qc_settings)	{
 				if (exists $library->{$key})	{ delete $library->{$key}; }
@@ -609,6 +619,8 @@ sub check_protocols	{
 		"allpaths" => "ALLPATHS-LG",
 		"ca" => "Celera Assembler",
 		"discovar" => "DISCOVAR de novo",
+		"masurca" => "MaSuRCA",
+		"minia" => "Minia",
 		"sga" => "SGA",
 		"soapdenovo2" => "SOAPdenovo2",
 		"spades" => "SPAdes",
@@ -618,6 +630,7 @@ sub check_protocols	{
 	# set assemblers that would invoke kmergenie
 	my %kmergenie = (
 		"abyss" => 1,
+		"minia" => 1,
 		"soapdenovo2" => 1,
 		"spades" => 1,
 		"dipspades" => 1,
@@ -650,10 +663,10 @@ sub check_protocols	{
 		if ($assembler eq "velvet")	{
 			unless (defined($global_opt->{'bin'}->{'velvetg'}) && -e $global_opt->{'bin'}->{'velvetg'}) { push @err_msg, "\t\tthe assembler Velvet (\"velvetg\") is not available.\n"; }
 			unless (defined($global_opt->{'bin'}->{'velveth'}) && -e $global_opt->{'bin'}->{'velveth'}) { push @err_msg, "\t\tthe assembler Velvet (\"velveth\") is not available.\n"; }
-		}	else	{
+		}	elsif ($assembler ne "ca")	{
 			unless (defined($global_opt->{'bin'}->{$assembler}) && -e $global_opt->{'bin'}->{$assembler}) { push @err_msg, "\t\tthe assembler $assembler{$assembler} is not available.\n"; }
 		}
-		if (defined($kmergenie{$assembler}) && $protocols->{$protocol}->{'kmer'} eq "0")	{
+		if ((defined($kmergenie{$assembler}) && $protocols->{$protocol}->{'kmer'} eq "0") || ($assembler eq "minia" && $protocols->{$protocol}->{'min-abundance'} eq "0"))	{
 			unless (defined($global_opt->{'bin'}->{'kmergenie'}) && -e $global_opt->{'bin'}->{'kmergenie'}) { push @err_msg, "\t\tthe k-mer optimizer KmerGenie is not available.\n"; }
 		}	elsif ($assembler eq "discovar")	{
 			unless (defined($global_opt->{'bin'}->{'picard'}) && -e $global_opt->{'bin'}->{'picard'}) { push @err_msg, "\t\tthe required tool Picard is not available.\n"; }
@@ -667,6 +680,11 @@ sub check_protocols	{
 		}	elsif ($assembler eq "ca")	{
 			unless ($protocols->{$protocol}->{'pbcns'} =~ /^[01]$/) { push @err_msg, "\t\tthe option \"pbCNS\" should be either \"0\" or \"1\".\n"; }
 			unless ($protocols->{$protocol}->{'sensitive'} =~ /^[01]$/) { push @err_msg, "\t\tthe option \"sensitive\" should be either \"0\" or \"1\".\n"; }
+		}	elsif ($assembler eq "masurca")	{
+			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/ && ($protocols->{$protocol}->{'kmer'} == 0 || $protocols->{$protocol}->{'kmer'}%2 == 1)) { push @err_msg, "\t\tthe option \"kmer\" should be \"0\" or an odd number.\n"; }
+		}	elsif ($assembler eq "minia")	{
+			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/ && ($protocols->{$protocol}->{'kmer'} == 0 || $protocols->{$protocol}->{'kmer'}%2 == 1)) { push @err_msg, "\t\tthe option \"kmer\" should be \"0\" or an odd number.\n"; }
+			unless ($protocols->{$protocol}->{'min-abundance'} =~ /^\d+$/) { push @err_msg, "\t\tthe option \"min-abundance\" should be an integer no less than zero.\n"; }
 		}	elsif ($assembler eq "sga")	{
 			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/ && $protocols->{$protocol}->{'kmer'} > 0) { push @err_msg, "\t\tthe option \"kmer\" should be a positive integer.\n"; }
 			unless ($protocols->{$protocol}->{'min-overlap'} =~ /^\d+$/ && $protocols->{$protocol}->{'min-overlap'} > 0) { push @err_msg, "\t\tthe option \"min-overlap\" should be a positive integer.\n"; }
@@ -726,8 +744,8 @@ sub check_compatibility	{
 			unless ($overlap)	{
 				push @err_msg, "\t\tALLPATHS-LG requires at least one overlapping PE library.\n";
 			}
-			unless (exists $read_type{'mp'})	{
-				push @err_msg, "\t\tALLPATHS-LG requires at least one MP library.\n";
+			unless (exists $read_type{'mp'} || exists $read_type{'hmp'})	{
+				push @err_msg, "\t\tALLPATHS-LG requires at least one (H)MP library.\n";
 			}
 		}	elsif ($protocols->{$protocol}->{'assembler'} eq "ca")	{		# a Celera Assembler protocol should have at least 20x PacBio reads for hybrid assembly, or at least 50x PacBio reads for self-correction assembly
 			my $clr_depth = 0;
@@ -738,12 +756,15 @@ sub check_compatibility	{
 			}
 			if (exists $read_type{'clr'})	{
 				unless (defined($global_opt->{'bin'}->{'pbcr'}) && -e $global_opt->{'bin'}->{'pbcr'}) { push @err_msg, "\t\tthe assembler CA (\"PBcR\") is not available.\n"; }
-				if (exists $read_type{'se'} || exists $read_type{'pe'})	{
+				if (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hmp'})	{
 					unless ($clr_depth >= 10)	{
 						push @warn_msg, "\t\tCelera Assembler recommends at least 10x coverage PacBio reads for hybrid assembly.\n";
 					}
 					unless (defined($global_opt->{'bin'}->{'bank-transact'}))	{
 						push @warn_msg, "\t\tCelera Assembler requires \"bank-transact\" for hybrid assembly, please install AMOS.\n";
+					}
+					if (exists $read_type{'mp'})	{
+						push @warn_msg, "\t\tOnly high-quality MP data can be used in hybrid assembly, normal MP libraries will be ignored.\n";
 					}
 				}	else	{
 					unless ($clr_depth >= 50)	{
@@ -758,12 +779,12 @@ sub check_compatibility	{
 				}
 			}	else	{
 				unless (defined($global_opt->{'bin'}->{'runca'}) && -e $global_opt->{'bin'}->{'runca'}) { push @err_msg, "\t\tthe assembler CA (\"runCA\") is not available.\n"; }
-				unless (exists $read_type{'se'} || exists $read_type{'pe'})	{
-					push @err_msg, "\t\tCelera Assembler requires at least one SE/PE library for illumina-only assembly.\n";
+				unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hmp'})	{
+					push @err_msg, "\t\tCelera Assembler requires at least one SE/PE/HMP library for illumina-only assembly.\n";
 				}
 			}
 		}	elsif ($protocols->{$protocol}->{'assembler'} eq "discovar")  {		# a DISCOVAR de novo protocol should have a single PE library, and the insert size should be no greater than three times the read length (which should be at least 100bp)
-			if (exists $read_type{'se'} || exists $read_type{'mp'} || exists $read_type{'clr'} || scalar keys %{$read_type{'pe'}} > 1)	{
+			if (!(exists $read_type{'pe'}) || scalar keys %read_type > 1 || scalar keys %{$read_type{'pe'}} > 1)	{
 				push @err_msg, "\t\tDiscovar de novo requires a SINGLE PE library.\n";
 			}	else	{
 				my @pe_lib = keys %{$read_type{'pe'}};
@@ -771,38 +792,48 @@ sub check_compatibility	{
 					push @err_msg, "\t\tDiscovar de novo requires a PE library whose insert size is substantially smaller than the read length (which should be at least 100bp).\n";
 				}
 			}
-		}	elsif ($protocols->{$protocol}->{'assembler'} eq "abyss")	{	# a MaSuRCA protocol should have at least one SE/PE library, and no PacBio library
-			unless (exists $read_type{'se'} || exists $read_type{'pe'})	{
-				push @err_msg, "\t\tMaSuRCA requires at least one SE/PE library.\n";
+		}	elsif ($protocols->{$protocol}->{'assembler'} eq "masurca")	{	# a MaSuRCA protocol should have at least one SE/PE/HMP library, and no PacBio library
+			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hmp'})	{
+				push @err_msg, "\t\tMaSuRCA requires at least one SE/PE/HMP library.\n";
 			}
 			if (exists $read_type{'clr'})	{
 				push @err_msg, "\t\tMaSuRCA is not compatible with PacBio reads.\n";
 			}
-		}	elsif ($protocols->{$protocol}->{'assembler'} eq "sga")	{		# a SGA protocol should have at least one SE/PE library (recommends 100bp or longer), and no PacBio library
-			unless (exists $read_type{'se'} || exists $read_type{'pe'})	{
-				push @err_msg, "\t\tSGA requires at least one SE/PE library.\n";
+		}	elsif ($protocols->{$protocol}->{'assembler'} eq "minia")	{	# a MaSuRCA protocol should have at least one SE/PE/HMP library, and no MP/PacBio library
+			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hmp'})	{
+				push @err_msg, "\t\tMinia requires at least one SE/PE/HMP library.\n";
+			}
+			if (exists $read_type{'mp'})	{
+				push @err_msg, "\t\tMinia is not compatible with MP reads.\n";
+			}
+			if (exists $read_type{'clr'})	{
+				push @err_msg, "\t\tMinia is not compatible with PacBio reads.\n";
+			}
+		}	elsif ($protocols->{$protocol}->{'assembler'} eq "sga")	{		# a SGA protocol should have at least one SE/PE/HMP library (recommends 100bp or longer), and no PacBio library
+			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hmp'})	{
+				push @err_msg, "\t\tSGA requires at least one SE/PE/HMP library.\n";
 			}
 			if (exists $read_type{'clr'})	{
 				push @err_msg, "\t\tSGA is not compatible with PacBio reads.\n";
 			}
 		}	elsif ($protocols->{$protocol}->{'assembler'} eq "soapdenovo2")	{	# a SOAPdenovo2 protocol should have at least one SE/PE library, and no PacBio library
-			unless (exists $read_type{'se'} || exists $read_type{'pe'})	{
-				push @err_msg, "\t\tSOAPdenovo2 requires at least one SE/PE library.\n";
+			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hmp'})	{
+				push @err_msg, "\t\tSOAPdenovo2 requires at least one SE/PE/HMP library.\n";
 			}
 			if (exists $read_type{'clr'})	{
 				push @err_msg, "\t\tSOAPdenovo2 is not compatible with PacBio reads.\n";
 			}
-		}	elsif ($protocols->{$protocol}->{'assembler'} eq "spades")	{	# a SPAdes protocol should have at least SE/PE library
-			unless (exists $read_type{'se'} || exists $read_type{'pe'})	{
-				push @err_msg, "\t\tSPAdes requires at least one SE/PE library.\n";
+		}	elsif ($protocols->{$protocol}->{'assembler'} eq "spades")	{	# a SPAdes protocol should have at least one SE/PE/HMP library
+			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hmp'})	{
+				push @err_msg, "\t\tSPAdes requires at least one SE/PE/HMP library.\n";
 			}
-		}	elsif ($protocols->{$protocol}->{'assembler'} eq "dipspades")	{	# a dipSPAdes protocol should have at least SE/PE library
-			unless (exists $read_type{'se'} || exists $read_type{'pe'})	{
-				push @err_msg, "\t\tdipSPAdes requires at least one SE/PE library.\n";
+		}	elsif ($protocols->{$protocol}->{'assembler'} eq "dipspades")	{	# a dipSPAdes protocol should have at least one SE/PE/HMP library
+			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hmp'})	{
+				push @err_msg, "\t\tdipSPAdes requires at least one SE/PE/HMP library.\n";
 			}
-		}	elsif ($protocols->{$protocol}->{'assembler'} eq "velvet")	{	# a Velvet protocol should have at least one SE/PE/MP library, and no PacBio library
-			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'mp'})	{
-				push @err_msg, "\t\tVelvet requires at least one SE/PE/MP library.\n";
+		}	elsif ($protocols->{$protocol}->{'assembler'} eq "velvet")	{	# a Velvet protocol should have at least one SE/PE/HMP library, and no PacBio library
+			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hmp'})	{
+				push @err_msg, "\t\tVelvet requires at least one SE/PE/HMP library.\n";
 			}
 			if (exists $read_type{'clr'})	{
 				push @err_msg, "\t\tVelvet is not compatible with PacBio reads.\n";
@@ -928,6 +959,7 @@ sub read_conf_file	{
 		"assembler" => "protocol",
 		"library" => "protocol",
 		"kmer" => "protocol",
+		"min-abundance" => "protocol",
 		"multi-kmer" => "protocol",
 		"option" => "protocol",
 		"pbcns" => "protocol",
@@ -945,12 +977,13 @@ sub read_conf_file	{
 		"nextclip" => "bin",
 		"quake" => "bin",
 		"kmergenie" => "bin",
-		"abyss-pe" => "bin",
+		"abyss" => "bin",
 		"allpaths" => "bin",
 		"pbcr" => "bin",
 		"runca" => "bin",
 		"discovar" => "bin",
 		"masurca" => "bin",
+		"minia" => "bin",
 		"soapdenovo2" => "bin",
 		"spades" => "bin",
 		"dipspades" => "bin",
@@ -985,14 +1018,14 @@ sub read_conf_file	{
 					my @opt = split /\./, $opt;
 					my @opt_lc = split /\./, lc($opt);
 					if (exists $class{$opt_lc[1]})	{
-						if ($class{$opt_lc[1]} eq "library" || $class{$opt_lc[1]} eq "protocol")	{
+						if ($class{$opt_lc[1]} =~ /^(library|protocol)$/)	{
 							if ($opt_lc[1] eq "library")	{
 								# remove potential redundancy in input libraries for each assembly protocol
 								my %library = map { $_ => 1 } (split /\,/, $value);
 								@{$global_opt{$class{$opt_lc[1]}}->{$opt[0]}->{$opt_lc[1]}} = sort keys %library;
 							}	else	{
 								# convert the name of simulator/assembler to lower case
-								if ($opt_lc[1] eq "simulator" || $opt_lc[1] eq "assembler" || $opt_lc[1] eq "read_type")	{
+								if ($opt_lc[1] =~ /^(simulator|assembler|read_type)$/)	{
 									$value = lc($value);
 								}	elsif ($opt_lc[1] eq "option")	{
 									$value =~ s/^\"+|\"+$//g;
@@ -1089,18 +1122,25 @@ sub write_conf_file	{
 			push @conf, $library.".indel_profile = ".(defined($global_opt->{'pirs'}->{'indel_profile'}) ? $global_opt->{'pirs'}->{'indel_profile'} : " ")."\n";
 		}
 		# write QC settings
-		if (defined($global_opt->{'library'}->{$library}->{'qc'}) && $global_opt->{'library'}->{$library}->{'qc'} == 1) { push @conf, $library.".QC = $global_opt->{'library'}->{$library}->{'qc'}\n"; }
-		if ($global_opt->{'library'}->{$library}->{'read_type'} eq "se" || $global_opt->{'library'}->{$library}->{'read_type'} eq "pe")	{
+		push @conf, $library.".QC = $global_opt->{'library'}->{$library}->{'qc'}\n";
+		if ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(se|pe)$/)	{
 			if (defined($global_opt->{'library'}->{$library}->{'tm-trailing'})) { push @conf, $library.".tm-trailing = $global_opt->{'library'}->{$library}->{'tm-trailing'}\n"; }
 			if (defined($global_opt->{'library'}->{$library}->{'tm-adapter'})) { push @conf, $library.".tm-adapter = $global_opt->{'library'}->{$library}->{'tm-adapter'}\n"; }
 			if (defined($global_opt->{'library'}->{$library}->{'tm-minlen'})) { push @conf, $library.".tm-minlen = $global_opt->{'library'}->{$library}->{'tm-minlen'}\n"; }
 			if (defined($global_opt->{'library'}->{$library}->{'qk-kmer'})) { push @conf, $library.".qk-kmer = $global_opt->{'library'}->{$library}->{'qk-kmer'}\n"; }
 			if (defined($global_opt->{'library'}->{$library}->{'qk-minlen'})) { push @conf, $library.".qk-minlen = $global_opt->{'library'}->{$library}->{'qk-minlen'}\n"; }
-		}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "mp")	{
+		}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq 'mp')	{
 			if (defined($global_opt->{'library'}->{$library}->{'tm-trailing'})) { push @conf, $library.".tm-trailing = $global_opt->{'library'}->{$library}->{'tm-trailing'}\n"; }
 			if (defined($global_opt->{'library'}->{$library}->{'tm-minlen'})) { push @conf, $library.".tm-minlen = $global_opt->{'library'}->{$library}->{'tm-minlen'}\n"; }
 			if (defined($global_opt->{'library'}->{$library}->{'nc-adapter'})) { push @conf, $library.".nc-adapter = $global_opt->{'library'}->{$library}->{'nc-adapter'}\n"; }
 			if (defined($global_opt->{'library'}->{$library}->{'nc-minlen'})) { push @conf, $library.".nc-minlen = $global_opt->{'library'}->{$library}->{'nc-minlen'}\n"; }
+		}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "hmp")	{
+			if (defined($global_opt->{'library'}->{$library}->{'tm-trailing'})) { push @conf, $library.".tm-trailing = $global_opt->{'library'}->{$library}->{'tm-trailing'}\n"; }
+			if (defined($global_opt->{'library'}->{$library}->{'tm-minlen'})) { push @conf, $library.".tm-minlen = $global_opt->{'library'}->{$library}->{'tm-minlen'}\n"; }
+			if (defined($global_opt->{'library'}->{$library}->{'nc-adapter'})) { push @conf, $library.".nc-adapter = $global_opt->{'library'}->{$library}->{'nc-adapter'}\n"; }
+			if (defined($global_opt->{'library'}->{$library}->{'nc-minlen'})) { push @conf, $library.".nc-minlen = $global_opt->{'library'}->{$library}->{'nc-minlen'}\n"; }
+			if (defined($global_opt->{'library'}->{$library}->{'qk-kmer'})) { push @conf, $library.".qk-kmer = $global_opt->{'library'}->{$library}->{'qk-kmer'}\n"; }
+			if (defined($global_opt->{'library'}->{$library}->{'qk-minlen'})) { push @conf, $library.".qk-minlen = $global_opt->{'library'}->{$library}->{'qk-minlen'}\n"; }
 		}
 	}
 	
@@ -1131,6 +1171,11 @@ sub write_conf_file	{
 			push @conf, $protocol.".assembler = DISCOVAR\n";
 		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "masurca")	{
 			push @conf, $protocol.".assembler = MaSuRCA\n";
+			push @conf, $protocol.".kmer = $global_opt->{'protocol'}->{$protocol}->{'kmer'}\n";
+		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "minia")	{
+			push @conf, $protocol.".assembler = Minia\n";
+			push @conf, $protocol.".kmer = $global_opt->{'protocol'}->{$protocol}->{'kmer'}\n";
+			push @conf, $protocol.".min-abundance = $global_opt->{'protocol'}->{$protocol}->{'min-abundance'}\n";
 		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "sga")	{
 			push @conf, $protocol.".assembler = SGA\n";
 			push @conf, $protocol.".kmer = $global_opt->{'protocol'}->{$protocol}->{'kmer'}\n";
@@ -1184,12 +1229,13 @@ sub write_conf_file	{
 	push @conf, "bin.NextClip = ".(defined($global_opt->{'bin'}->{'nextclip'}) ? $global_opt->{'bin'}->{'nextclip'} : " ")."\n";
 	push @conf, "bin.Quake = ".(defined($global_opt->{'bin'}->{'quake'}) ? $global_opt->{'bin'}->{'quake'} : " ")."\n";
 	push @conf, "bin.KmerGenie = ".(defined($global_opt->{'bin'}->{'kmergenie'}) ? $global_opt->{'bin'}->{'kmergenie'} : " ")."\n";
-	push @conf, "bin.ABYSS = ".(defined($global_opt->{'bin'}->{'abyss-pe'}) ? $global_opt->{'bin'}->{'abyss-pe'} : " ")."\n";
+	push @conf, "bin.ABYSS = ".(defined($global_opt->{'bin'}->{'abyss'}) ? $global_opt->{'bin'}->{'abyss'} : " ")."\n";
 	push @conf, "bin.ALLPATHS = ".(defined($global_opt->{'bin'}->{'allpaths'}) ? $global_opt->{'bin'}->{'allpaths'} : " ")."\n";
 	push @conf, "bin.PBcR = ".(defined($global_opt->{'bin'}->{'pbcr'}) ? $global_opt->{'bin'}->{'pbcr'} : " ")."\n";
 	push @conf, "bin.runCA = ".(defined($global_opt->{'bin'}->{'runca'}) ? $global_opt->{'bin'}->{'runca'} : " ")."\n";
 	push @conf, "bin.DISCOVAR = ".(defined($global_opt->{'bin'}->{'discovar'}) ? $global_opt->{'bin'}->{'discovar'} : " ")."\n";
 	push @conf, "bin.MaSuRCA = ".(defined($global_opt->{'bin'}->{'masurca'}) ? $global_opt->{'bin'}->{'masurca'} : " ")."\n";
+	push @conf, "bin.Minia = ".(defined($global_opt->{'bin'}->{'minia'}) ? $global_opt->{'bin'}->{'minia'} : " ")."\n";
 	push @conf, "bin.SOAPdenovo2 = ".(defined($global_opt->{'bin'}->{'soapdenovo2'}) ? $global_opt->{'bin'}->{'soapdenovo2'} : " ")."\n";
 	push @conf, "bin.SPAdes = ".(defined($global_opt->{'bin'}->{'spades'}) ? $global_opt->{'bin'}->{'spades'} : " ")."\n";
 	push @conf, "bin.dipSPAdes = ".(defined($global_opt->{'bin'}->{'dipspades'}) ? $global_opt->{'bin'}->{'dipspades'} : " ")."\n";

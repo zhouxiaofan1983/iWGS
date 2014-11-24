@@ -15,7 +15,7 @@ use Utilities;
 
 my $usage = "
 iWGS: in silico Whole Genome Sequencer
-Version 0.6
+Version 0.8
 
 Usage: iWGS [options]
 
@@ -39,13 +39,10 @@ Advanced options:
 					configuration files would allow each library/protocol to have different parameters.
 				3: 	restart from the configuration files generated in Mode 2.
 --Conf				the configuration files for libraries, assembly protocols, and misellaneous options, separated by comma.
---Real				run iWGS with real datasets (default: 0 [no])
+--Real				run iWGS with real datasets
 
 Please report any problem to \"xiaofan.zhou\@vanderbilt.edu\".
 ";
-
-#--QC				perform quality control (quliaty/adapter trimming and error correction) before assembly for selected 
-#				libraries (provide a list of library names separated by comma) or all libraries (type \"all\")
 
 unless (@ARGV)	{
 	die "$usage\n";
@@ -56,10 +53,10 @@ unless (@ARGV)	{
 #############################
 
 my $global_ctrl_file;
+my $price;
 my $cleanup = 0;
 my $overwrite = 0;
 my $verify = 0;
-my $price;
 my $mode = 1;
 my $real = 0;
 my $conf;
@@ -161,6 +158,11 @@ chdir("$global_opt{'out_dir'}/libraries");
 foreach my $library (sort keys %{$global_opt{'library'}})	{
 	my $skip = 0;
 	
+	unless (-d "$global_opt{'out_dir'}/libraries/$library")	{
+		mkdir("$global_opt{'out_dir'}/libraries/$library");
+	}
+	chdir("$global_opt{'out_dir'}/libraries/$library");
+
 	# convert all read data to Phred33
 	if ($real == 1)	{
 		$skip = &Preprocess::prepare_real($library, \%global_opt, $overwrite);
@@ -169,12 +171,12 @@ foreach my $library (sort keys %{$global_opt{'library'}})	{
 	# skip the simulation if overwrite if off and the library already exists
 	if ($overwrite == 0)	{
 		if ($global_opt{'library'}->{$library}->{'read_type'} eq "se" || $global_opt{'library'}->{$library}->{'read_type'} eq "clr")	{
-			if (-e "$global_opt{'out_dir'}/libraries/$library.fq")	{
+			if (-e "$library.fq")	{
 				print "NOTE: the library $library already exists, skip to the next.\n\n";
 				$skip = 1;
 			}
 		}	else	{
-			if (-e "$global_opt{'out_dir'}/libraries/$library\_1.fq" && -e "$global_opt{'out_dir'}/libraries/$library\_2.fq")	{
+			if (-e "$library\_1.fq" && -e "$library\_2.fq")	{
 				print "NOTE: the library $library already exists, skip to the next.\n\n";
 				$skip = 1;
 			}
@@ -200,7 +202,7 @@ foreach my $library (sort keys %{$global_opt{'library'}})	{
 # check if QC is turned on for at least one library
 my @qc;
 foreach my $library (sort keys %{$global_opt{'library'}})	{
-	if (defined($global_opt{'library'}->{$library}->{'qc'}) && $global_opt{'library'}->{$library}->{'qc'} == 1)	{
+	if ($global_opt{'library'}->{$library}->{'qc'})	{
 		push @qc, $library
 	}
 }
@@ -213,8 +215,6 @@ if (@qc)	{
 	}
 
 	foreach my $library (@qc)       {
-		next unless (defined($global_opt{'library'}->{$library}->{'qc'}) && $global_opt{'library'}->{$library}->{'qc'} == 1);
-	
 		unless (-d "$global_opt{'out_dir'}/preprocessed/$library")	{
 			mkdir("$global_opt{'out_dir'}/preprocessed/$library");
 		}
@@ -244,7 +244,7 @@ foreach my $protocol (sort keys %{$global_opt{'protocol'}})	{
 	}
 	chdir("$global_opt{'out_dir'}/protocols/$protocol");
 
-	&Assembly::assemble($protocol, \%global_opt, $overwrite);	
+	&Assembly::assemble($protocol, \%global_opt, $overwrite, $cleanup);	
 }
 
 
@@ -254,10 +254,12 @@ foreach my $protocol (sort keys %{$global_opt{'protocol'}})	{
 
 print "##############################\n# iWGS Stage 4: QUAST evaluation\t".localtime()."\n##############################\n\n";
 
-unless (-d "$global_opt{'out_dir'}/evaluation")	{
-	mkdir("$global_opt{'out_dir'}/evaluation");
+# remove the evaluation folder if it already exists
+if (-d "$global_opt{'out_dir'}/evaluation")	{
+	system("rm -rf $global_opt{'out_dir'}/evaluation");
 }
 
+mkdir("$global_opt{'out_dir'}/evaluation");
 chdir("$global_opt{'out_dir'}/evaluation");
 
 # perform QUAST evaluation on assembled contigs
