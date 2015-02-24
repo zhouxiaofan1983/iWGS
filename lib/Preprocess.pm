@@ -16,7 +16,7 @@ sub prepare_real	{
 		}	else	{
 			return 0;
 		}
-	}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(pe|mp|hmp)$/)	{
+	}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(pe|mp|hqmp)$/)	{
 		if (-e "$global_opt->{'out_dir'}/real_data/$library\_1.fq" || -e "$global_opt->{'out_dir'}/real_data/$library\_2.fq")	{
 			if (-e "$global_opt->{'out_dir'}/real_data/$library\_1.fq" && -e "$global_opt->{'out_dir'}/real_data/$library\_2.fq")	{
 				unless  ($overwrite == 0 && -e "$library\_1.fq" && -e "$library\_2.fq")	{
@@ -63,19 +63,29 @@ sub QC	{
 	$lib_opt->{'qc'} = "original";
 
 	if (defined($lib_opt->{'tm-minlen'}))	{
-		if ($lib_opt->{'read_type'} eq "se" && !($overwrite == 0 && -e "$library.tm.fq"))	{
-			if (-e "$library.tm.fq") { system("rm $library.tm.fq"); }
-			&trimmomatic($library, $global_opt);
-		}	elsif (($lib_opt->{'read_type'} =~ /^(pe|mp|hmp)$/) && !($overwrite == 0 && -e "$library\_1.tm.fq" && -e "$library\_2.tm.fq"))	{
-			if (-e "$library\_1.tm.fq") { system("rm $library\_1.tm.fq"); }
-			if (-e "$library\_2.tm.fq") { system("rm $library\_2.tm.fq"); }
-			if (-e "$library.tm.fq") { system("rm $library.tm.fq"); }
-			&trimmomatic($library, $global_opt);
+		if ($lib_opt->{'read_type'} eq "se")	{
+			if ($overwrite == 0 && -e "$library.tm.fq")	{
+				$lib_opt->{'qc'} = "trimmomatic";
+			}	else	{
+				if (-e "$library.tm.fq") { system("rm $library.tm.fq"); }
+				&trimmomatic($library, $global_opt);
+			}
+		}	elsif ($lib_opt->{'read_type'} =~ /^(pe|mp|hqmp)$/)	{
+			if ($overwrite == 0 && -e "$library\_1.tm.fq" && -e "$library\_2.tm.fq")	{
+				$lib_opt->{'qc'} = "trimmomatic";
+			}	else	{
+				if (-e "$library\_1.tm.fq") { system("rm $library\_1.tm.fq"); }
+				if (-e "$library\_2.tm.fq") { system("rm $library\_2.tm.fq"); }
+				if (-e "$library.tm.fq") { system("rm $library.tm.fq"); }
+				&trimmomatic($library, $global_opt);
+			}
 		}
 	}
 
 	if (defined($lib_opt->{'nc-minlen'}))	{
-		unless ($overwrite == 0 && -e "$library\_1.nc.fq" && -e "$library\_2.nc.fq")	{
+		if ($overwrite == 0 && -e "$library\_1.nc.fq" && -e "$library\_2.nc.fq")	{
+			$lib_opt->{'qc'} = "nextclip";
+		}	else	{
 			if (-e "$library\_1.nc.fq") { system("rm $library\_1.nc.fq"); }
 			if (-e "$library\_2.nc.fq") { system("rm $library\_2.nc.fq"); }
 			&nextclip($library, $global_opt);
@@ -83,14 +93,22 @@ sub QC	{
 	}
 
 	if (defined($lib_opt->{'qk-minlen'}))	{
-		if ($lib_opt->{'read_type'} eq "se" && !($overwrite == 0 && -e "$library.qk.fq"))	{
-			if (-e "$library.qk.fq") { system("rm $library.qk.fq"); }
-			&quake($library, $global_opt);
-		}	elsif (($lib_opt->{'read_type'} =~ /^(pe|hmp)$/) && !($overwrite == 0 && -e "$library\_1.qk.fq" && -e "$library\_2.qk.fq"))	{
-			if (-e "$library\_1.qk.fq") { system("rm $library\_1.qk.fq"); }
-			if (-e "$library\_2.qk.fq") { system("rm $library\_2.qk.fq"); }
-			if (-e "$library.qk.fq") { system("rm $library.qk.fq"); }
-			&quake($library, $global_opt);
+		if ($lib_opt->{'read_type'} eq "se")	{
+			if ($overwrite == 0 && -e "$library.qk.fq")	{
+				$lib_opt->{'qc'} = "quake";
+			}	else	{
+				if (-e "$library.qk.fq") { system("rm $library.qk.fq"); }
+				&quake($library, $global_opt);
+			}
+		}	elsif ($lib_opt->{'read_type'} =~ /^(pe|hqmp)$/)	{
+			if ($overwrite == 0 && -e "$library\_1.qk.fq" && -e "$library\_2.qk.fq")	{
+				$lib_opt->{'qc'} = "quake";
+			}	else	{
+				if (-e "$library\_1.qk.fq") { system("rm $library\_1.qk.fq"); }
+				if (-e "$library\_2.qk.fq") { system("rm $library\_2.qk.fq"); }
+				if (-e "$library.qk.fq") { system("rm $library.qk.fq"); }
+				&quake($library, $global_opt);
+			}
 		}
 	}
 
@@ -106,7 +124,7 @@ sub trimmomatic	{
 
 	# set command for Trimmomatic trimming
 	my $cmd = "java -jar $global_opt->{'bin'}->{'trimmomatic'} ".(($lib_opt->{'read_type'} eq "se") ? "SE": "PE")." -threads $global_opt->{'threads'}";
-	# set input and output file names for SE and PE/MP data separately
+	# set input and output file names for SE and PE/MP/HQMP data separately
 	if ($lib_opt->{'read_type'} eq "se")    {
 		$cmd .= " $global_opt->{'out_dir'}/libraries/$library/$library.fq $library.tm.fq";
 	}	else	{
@@ -199,7 +217,7 @@ sub quake	{
 		if ($lib_opt->{'read_type'} eq "se")	{
 			system("ln -s $global_opt->{'out_dir'}/libraries/$library/$library.fq $library.fq");
 			print QUAKE "$library.fq\n";
-		}	elsif ($lib_opt->{'read_type'} =~ /^(pe|hmp)$/)	{
+		}	elsif ($lib_opt->{'read_type'} =~ /^(pe|hqmp)$/)	{
 			system("ln -s $global_opt->{'out_dir'}/libraries/$library/$library\_1.fq $library\_1.fq");
 			system("ln -s $global_opt->{'out_dir'}/libraries/$library/$library\_2.fq $library\_2.fq");
 			print QUAKE "$library\_1.fq $library\_2.fq\n";
@@ -208,7 +226,7 @@ sub quake	{
 		if ($lib_opt->{'read_type'} eq "se")	{
 			system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq $library.fq");
 			print QUAKE "$library.fq\n";
-		}	elsif ($lib_opt->{'read_type'} =~ /^(pe|hmp)$/)	{
+		}	elsif ($lib_opt->{'read_type'} =~ /^(pe|hqmp)$/)	{
 			system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq $library\_1.fq");
 			system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq $library\_2.fq");
 			print QUAKE "$library\_1.fq $library\_2.fq\n";
@@ -242,7 +260,7 @@ sub quake	{
 			system("mv $library.cor.fq ../$library.qk.fq");
 			$err = 0;
 		}
-	}	elsif ($lib_opt->{'read_type'} =~ /^(pe|hmp)$/)	{
+	}	elsif ($lib_opt->{'read_type'} =~ /^(pe|hqmp)$/)	{
 		if (-s "$library\_1.cor.fq" && -s "$library\_2.fq")	{
 			system("mv $library\_1.cor.fq ../$library\_1.qk.fq");
 			system("mv $library\_2.cor.fq ../$library\_2.qk.fq");
