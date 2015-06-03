@@ -1,10 +1,15 @@
+Version 0.91	2015/06/03
+	- added support for the error correction tool Lighter
+	- changed options associated with error correction procedure
+	- fix bugs for real data analysis
+
 Version 0.9	2015/02/16
 	- switch to Minia v2.0.1
 	- switch from DISCOVAR v51489 to v51885 which supports FastQ files
 	natively
 
 Version 0.8	2014/11/23
-	- add the "HMP" (High-quality Mate-Pair) read type
+	- added the "HMP" (High-quality Mate-Pair) read type
 	- various code modifications
 
 Version 0.7	2014/11/20

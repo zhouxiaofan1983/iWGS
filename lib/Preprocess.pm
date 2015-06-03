@@ -20,10 +20,10 @@ sub prepare_real	{
 		if (-e "$global_opt->{'out_dir'}/real_data/$library\_1.fq" || -e "$global_opt->{'out_dir'}/real_data/$library\_2.fq")	{
 			if (-e "$global_opt->{'out_dir'}/real_data/$library\_1.fq" && -e "$global_opt->{'out_dir'}/real_data/$library\_2.fq")	{
 				unless  ($overwrite == 0 && -e "$library\_1.fq" && -e "$library\_2.fq")	{
-					$cmd = " $global_opt->{'out_dir'}/real_data/$library\_1.fq $global_opt->{'out_dir'}/real_data/$library\_2.fq $library\_1.fq temp_1.fq $library\_2.fq temp_2.fq TOPHRED33";
+					$cmd .= " $global_opt->{'out_dir'}/real_data/$library\_1.fq $global_opt->{'out_dir'}/real_data/$library\_2.fq $library\_1.fq temp_1.fq $library\_2.fq temp_2.fq TOPHRED33";
 				}
 			}	else	{
-				die "ERROR: the real dataset $library is a PE library but both ends do not exist.\n";
+				die "ERROR: the real dataset $library is a PE/MP/HQMP library but both ends do not exist.\n";
 			}
 		}	else	{
 			return 0;
@@ -92,22 +92,30 @@ sub QC	{
 		}
 	}
 
-	if (defined($lib_opt->{'qk-minlen'}))	{
+	if (defined($lib_opt->{'ec-kmer'}))	{
 		if ($lib_opt->{'read_type'} eq "se")	{
-			if ($overwrite == 0 && -e "$library.qk.fq")	{
-				$lib_opt->{'qc'} = "quake";
+			if ($overwrite == 0 && -e "$library.cor.fq")	{
+				$lib_opt->{'qc'} = "correction";
 			}	else	{
-				if (-e "$library.qk.fq") { system("rm $library.qk.fq"); }
-				&quake($library, $global_opt);
+				if (-e "$library.cor.fq") { system("rm $library.cor.fq"); }
+				if ($lib_opt->{'ec-tool'} eq "lighter")	{
+					&lighter($library, $global_opt);
+				}	elsif ($lib_opt->{'ec-tool'} eq "quake")	{
+					&quake($library, $global_opt);
+				}
 			}
 		}	elsif ($lib_opt->{'read_type'} =~ /^(pe|hqmp)$/)	{
-			if ($overwrite == 0 && -e "$library\_1.qk.fq" && -e "$library\_2.qk.fq")	{
-				$lib_opt->{'qc'} = "quake";
+			if ($overwrite == 0 && -e "$library\_1.cor.fq" && -e "$library\_2.cor.fq")	{
+				$lib_opt->{'qc'} = "correction";
 			}	else	{
-				if (-e "$library\_1.qk.fq") { system("rm $library\_1.qk.fq"); }
-				if (-e "$library\_2.qk.fq") { system("rm $library\_2.qk.fq"); }
-				if (-e "$library.qk.fq") { system("rm $library.qk.fq"); }
-				&quake($library, $global_opt);
+				if (-e "$library\_1.cor.fq") { system("rm $library\_1.cor.fq"); }
+				if (-e "$library\_2.cor.fq") { system("rm $library\_2.cor.fq"); }
+				if (-e "$library.cor.fq") { system("rm $library.cor.fq"); }
+				if ($lib_opt->{'ec-tool'} eq "lighter")	{
+					&lighter($library, $global_opt);
+				}	elsif ($lib_opt->{'ec-tool'} eq "quake")	{
+					&quake($library, $global_opt);
+				}
 			}
 		}
 	}
@@ -206,9 +214,9 @@ sub quake	{
 	chdir("quake");
 	
 	# estimate k-mer size if not provided
-	if ($lib_opt->{'qk-kmer'} == 0)	{
+	if ($lib_opt->{'ec-kmer'} == 0)	{
 		my $genomeSize = ($global_opt->{'genome_size'} == 0) ? &Utilities::genomeSize($global_opt->{'genome'}) : $global_opt->{'genome_size'};
-		$lib_opt->{'qk-kmer'} = int(log(200*$genomeSize)/log(4) + 0.5);
+		$lib_opt->{'ec-kmer'} = int(log(200*$genomeSize)/log(4) + 0.5);
 	}
 
 	# generate file list
@@ -236,18 +244,18 @@ sub quake	{
 			}
 		}
 	}	elsif ($lib_opt->{'qc'} eq "nextclip")	{
-			system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq $library\_1.fq");
-			system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq $library\_2.fq");
-			print QUAKE "$library\_1.fq $library\_2.fq\n";
-			if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq")	{
-				system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq $library.fq");
-				print QUAKE "$library.fq\n";
-			}
+		system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq $library\_1.fq");
+		system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq $library\_2.fq");
+		print QUAKE "$library\_1.fq $library\_2.fq\n";
+		if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq")	{
+			system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq $library.fq");
+			print QUAKE "$library.fq\n";
 		}
+	}
 	close(QUAKE);
 	
 	# set command
-	my $cmd = "$global_opt->{'bin'}->{'quake'} -t $global_opt->{'threads'} -l $lib_opt->{'qk-minlen'} -k $lib_opt->{'qk-kmer'} -f $library.filelist";
+	my $cmd = "$global_opt->{'bin'}->{'quake'} -t $global_opt->{'threads'} -k $lib_opt->{'ec-kmer'} -f $library.filelist";
 	
 	# run Quake error correction
 	print "\tQuake error correction starts:\n";
@@ -257,21 +265,21 @@ sub quake	{
 	my $err = 1;
 	if ($lib_opt->{'read_type'} eq "se")	{
 		if (-s "$library.cor.fq")	{
-			system("mv $library.cor.fq ../$library.qk.fq");
+			system("mv $library.cor.fq ../$library.cor.fq");
 			$err = 0;
 		}
 	}	elsif ($lib_opt->{'read_type'} =~ /^(pe|hqmp)$/)	{
 		if (-s "$library\_1.cor.fq" && -s "$library\_2.fq")	{
-			system("mv $library\_1.cor.fq ../$library\_1.qk.fq");
-			system("mv $library\_2.cor.fq ../$library\_2.qk.fq");
+			system("mv $library\_1.cor.fq ../$library\_1.cor.fq");
+			system("mv $library\_2.cor.fq ../$library\_2.cor.fq");
 			if (-s "$library\_1.cor_single.fq")	{
-				system("cat $library\_1.cor_single.fq >> ../$library.qk.fq");
+				system("cat $library\_1.cor_single.fq >> ../$library.cor.fq");
 			}
 			if (-s "$library\_2.cor_single.fq")	{
-				system("cat $library\_2.cor_single.fq >> ../$library.qk.fq");
+				system("cat $library\_2.cor_single.fq >> ../$library.cor.fq");
 			}
 			if (-s "$library.cor.fq")	{
-				system("cat $library.cor.fq >> ../$library.qk.fq");
+				system("cat $library.cor.fq >> ../$library.cor.fq");
 			}
 			$err = 0;
 		}
@@ -280,7 +288,7 @@ sub quake	{
 	if ($err)	{
 		print "\tWARNING: No corrected reads found, Quake error correction failed.\n";
 	}	else	{
-		$lib_opt->{'qc'} = "quake";
+		$lib_opt->{'qc'} = "correction";
 		print "\tQuake error correction finished.\n";
 	}
 
@@ -288,6 +296,93 @@ sub quake	{
 	system("rm -rf quake");
 
 	return;
+}
+
+sub lighter	{
+	(my $library, my $global_opt) = @_;
+
+	my $lib_opt = $global_opt->{'library'}->{$library};
+	
+	mkdir("lighter");
+	chdir("lighter");
+	
+	my $file_list;
+	# generate file list
+	if ($lib_opt->{'qc'} eq "original")	{
+		if ($lib_opt->{'read_type'} eq "se")	{
+			system("ln -s $global_opt->{'out_dir'}/libraries/$library/$library.fq $library.fq");
+			$file_list .= "-r $library.fq ";
+		}	elsif ($lib_opt->{'read_type'} =~ /^(pe|hqmp)$/)	{
+			system("ln -s $global_opt->{'out_dir'}/libraries/$library/$library\_1.fq $library\_1.fq");
+			system("ln -s $global_opt->{'out_dir'}/libraries/$library/$library\_2.fq $library\_2.fq");
+			$file_list .= "-r $library\_1.fq -r $library\_2.fq ";
+		}
+	}	elsif ($lib_opt->{'qc'} eq "trimmomatic")	{
+		if ($lib_opt->{'read_type'} eq "se")	{
+			system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq $library.fq");
+			$file_list .= "-r $library.fq ";
+		}	elsif ($lib_opt->{'read_type'} =~ /^(pe|hqmp)$/)	{
+			system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq $library\_1.fq");
+			system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq $library\_2.fq");
+			$file_list .= "-r $library\_1.fq -r $library\_2.fq ";
+			if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq")	{
+				system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq $library.fq");
+				$file_list .= "-r $library.fq ";
+			}
+		}
+	}	elsif ($lib_opt->{'qc'} eq "nextclip")	{
+		system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq $library\_1.fq");
+		system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq $library\_2.fq");
+		$file_list .= "-r $library\_1.fq -r $library\_2.fq ";
+		if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq")	{
+			system("ln -s $global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq $library.fq");
+			$file_list .= "-r $library.fq ";
+		}
+	}
+	
+	if ($lib_opt->{'ec-kmer'} == 0)	{
+		$lib_opt->{'ec-kmer'} = 19;
+	}
+	
+	my $genomeSize = ($global_opt->{'genome_size'} == 0) ? &Utilities::genomeSize($global_opt->{'genome'}) : $global_opt->{'genome_size'};
+	
+	# set command
+	my $cmd = "$global_opt->{'bin'}->{'lighter'} -t $global_opt->{'threads'} -K $lib_opt->{'ec-kmer'} $genomeSize $file_list";
+
+	# run Lighter error correction
+	print "\tLighter error correction starts:\n";
+	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$library.QC.log");
+
+	# check if Lighter runs into error
+	my $err = 1;
+	if ($lib_opt->{'read_type'} eq "se")	{
+		if (-s "$library.cor.fq")	{
+			system("mv $library.cor.fq ../$library.cor.fq");
+			$err = 0;
+		}
+	}	elsif ($lib_opt->{'read_type'} =~ /^(pe|hqmp)$/)	{
+		if (-s "$library\_1.cor.fq" && -s "$library\_2.fq")	{
+			system("mv $library\_1.cor.fq ../$library\_1.cor.fq");
+			system("mv $library\_2.cor.fq ../$library\_2.cor.fq");
+			if (-s "$library.cor.fq")	{
+				system("mv $library.cor.fq ../$library.cor.fq");
+			}
+			$err = 0;
+		}
+	}
+	
+	if ($err)	{
+		print "\tWARNING: No corrected reads found, Lighter error correction failed.\n";
+	}	else	{
+		$lib_opt->{'qc'} = "correction";
+		print "\tLighter error correction finished.\n";
+	}
+
+	chdir("..");
+	system("rm -rf lighter");
+
+	return;
+
 }
 
 1;

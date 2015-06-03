@@ -64,7 +64,7 @@ sub abyss	{
 	print "Starts the assembly protocol $protocol:\t".localtime()."\n";
 	
 	# set k-mer
-	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? [($global_opt->{'protocol'}->{$protocol}->{'kmer'}, 0)] : &kmergenie($protocol, $global_opt, 0, 0, 1, 0, 0, 0);
+	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? [ ($global_opt->{'protocol'}->{$protocol}->{'kmer'}, 0) ] : &kmergenie($protocol, $global_opt, 0, 0, 1, 0, 0, 0);
 
 	# set command
 	my $cmd = "$global_opt->{'bin'}->{'abyss'} np=$global_opt->{'threads'} k=$kmer->[0] name=$protocol";
@@ -234,21 +234,29 @@ sub ca	{
 			 system("ln $data{'clr'}->{$clr[0]} pacbio_clr.fq");
 		}
 	
+		# DEPRECATED CODE: the option "-sensitive" was used instead from v8.3
 		# create the "pacbio.spec" filfe
-		if ($global_opt->{'protocol'}->{$protocol}->{'sensitive'})	{
-			open SPEC, "> pacbio.spec" or die "Can't write to pacbio.spec!\n";
-			print SPEC "mhap=-k 16 --num-hashes 1256 --num-min-matches 3 --threshold 0.04\nmerSize=16\n";
-			close (SPEC);
-		}	else	{
-			system("touch pacbio.spec");
-		}
+		# if ($global_opt->{'protocol'}->{$protocol}->{'sensitive'})	{
+		# 	open SPEC, "> pacbio.spec" or die "Can't write to pacbio.spec!\n";
+		# 	print SPEC "mhap=-k 16 --num-hashes 1256 --num-min-matches 3 --threshold 0.04\nmerSize=16\n";
+		# 	close (SPEC);
+		# }	else	{
+		# 	system("touch pacbio.spec");
+		# }
+		
+		# create the "pacbio.spec" filfe
+		system("touch pacbio.spec");
 	
+		$cmd = "$global_opt->{'bin'}->{'pbcr'} pbcns=".$global_opt->{'protocol'}->{$protocol}->{'pbcns'};
+		if ($global_opt->{'protocol'}->{$protocol}->{'sensitive'})      {
+			$cmd .= " -sensitive";
+		}
 		if (@frg)	{
 			# hybrid assembly
-			$cmd = "$global_opt->{'bin'}->{'pbcr'} -length 500 -partitions 200 -l $protocol -genomeSize $genomeSize -s pacbio.spec -fastq $global_opt->{'out_dir'}/protocols/$protocol/pacbio_clr.fq ".(join " ", @frg);
+			$cmd .= " -l $protocol -genomeSize $genomeSize -s pacbio.spec -fastq $global_opt->{'out_dir'}/protocols/$protocol/pacbio_clr.fq ".(join " ", @frg);
 		}	else	{
 			# PacBio only assembly
-			$cmd = "$global_opt->{'bin'}->{'pbcr'} -length 500 -partitions 200 -l $protocol -genomeSize $genomeSize -s pacbio.spec -fastq $global_opt->{'out_dir'}/protocols/$protocol/pacbio_clr.fq";
+			$cmd .= " -l $protocol -genomeSize $genomeSize -s pacbio.spec -fastq $global_opt->{'out_dir'}/protocols/$protocol/pacbio_clr.fq";
 		}
 	}	else	{
 		# illumina only assembly
@@ -386,7 +394,7 @@ sub masurca	{
 	foreach my $library (@{$global_opt->{'protocol'}->{$protocol}->{'library'}})	{
 		$total_cov += $global_opt->{'library'}->{$library}->{'depth'};
 	}
-	print CONF "JF_SIZE=".(2*$total_cov*$genomeSize)."\nEND\n";
+	print CONF "JF_SIZE=".(10*$genomeSize)."\nEND\n";
 	close (CONF);
 	
 	# run MaSuRCA
@@ -438,7 +446,7 @@ sub minia	{
 	}
 	
 	# set k-mer and min-abundance
-	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? $global_opt->{'protocol'}->{$protocol}->{'kmer'} : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 0, 1);
+	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? [ ($global_opt->{'protocol'}->{$protocol}->{'kmer'}, 0) ] : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 0, 1);
 	$kmer->[1] = ($kmer->[1] > 1) ? $kmer->[1] : 2;
 
 	# DEPRECATED CODE: Minia v2.0.1 does not require this parameter any more
@@ -742,7 +750,7 @@ sub soapdenovo2	{
 	close (CONF);
 
 	# set k-mer
-	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? $global_opt->{'protocol'}->{$protocol}->{'kmer'} : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 0, 0);
+	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? [ ($global_opt->{'protocol'}->{$protocol}->{'kmer'}, 0) ] : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 0, 0);
 
 	# set command
 	my $cmd = "$global_opt->{'bin'}->{'soapdenovo2'} all -s config -k $kmer->[0] -p $global_opt->{'threads'} -o $protocol";
@@ -774,6 +782,7 @@ sub spades	{
 	my %data = &data($protocol, $global_opt, 0, 1, 1, 1);
 	my $max_rd_len = 0;
 	foreach my $library (@{$global_opt->{'protocol'}->{$protocol}->{'library'}})    {
+		next unless (exists($global_opt->{'library'}->{$library}->{'read_length'}));
 		$max_rd_len = ($max_rd_len >= $global_opt->{'library'}->{$library}->{'read_length'}) ? $max_rd_len : $global_opt->{'library'}->{$library}->{'read_length'};
 	}
 	
@@ -836,7 +845,7 @@ sub spades	{
 			$kmer{'127'} = 1;
 		}
 	}
-	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? $global_opt->{'protocol'}->{$protocol}->{'kmer'} : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 0, 0);
+	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? [ ($global_opt->{'protocol'}->{$protocol}->{'kmer'}, 0) ] : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 0, 0);
 	$kmer{$kmer->[0]} = 1;
 	$kmer = join ",", sort {$a<=>$b} keys %kmer;
 
@@ -933,7 +942,7 @@ sub dipspades	{
 			$kmer{'127'} = 1;
 		}
 	}
-	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? $global_opt->{'protocol'}->{$protocol}->{'kmer'} : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 1, 0);
+	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? [ ($global_opt->{'protocol'}->{$protocol}->{'kmer'}, 0) ] : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 1, 0);
 	$kmer{$kmer->[0]} = 1;
 	$kmer = join ",", sort {$a<=>$b} keys %kmer;
 
@@ -970,7 +979,7 @@ sub velvet	{
 	# set library numbering
 	my %lib_num; my $lib_num = 1;
 	foreach my $read_type (sort keys %data)	{
-		foreach my $library (@{$data{$read_type}})	{
+		foreach my $library (sort keys %{$data{$read_type}})	{
 			if ($lib_num == 1)	{
 				$lib_num{$library} = "";
 			}	else	{
@@ -1007,7 +1016,7 @@ sub velvet	{
 	}
 	
 	# set k-mer
-	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? $global_opt->{'protocol'}->{$protocol}->{'kmer'} : &kmergenie($protocol, $global_opt, 1, 1, 1, 1, 0, 0);
+	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? [ ($global_opt->{'protocol'}->{$protocol}->{'kmer'}, 0) ] : &kmergenie($protocol, $global_opt, 1, 1, 1, 1, 0, 0);
 	
 	# set command for velveth
 	my $cmd = "$global_opt->{'bin'}->{'velveth'} . $kmer->[0]".$libs;
@@ -1062,8 +1071,8 @@ sub data	{
 				$data{'se'}->{$library} = "$global_opt->{'out_dir'}/libraries/$library/$library.fq";
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
 				$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
-			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "quake")	{
-				$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.qk.fq";
+			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "correction")	{
+				$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.cor.fq";
 			}
 		}
 		foreach my $library (@{$lib{'pe'}})	{
@@ -1073,9 +1082,9 @@ sub data	{
 				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq")	{
 					$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
 				}
-			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "quake")	{
-				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.qk.fq")	{
-					$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.qk.fq";
+			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "correction")	{
+				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.cor.fq")	{
+					$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.cor.fq";
 				}
 			}
 		}
@@ -1106,9 +1115,9 @@ sub data	{
 					if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq")	{
 						$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq";
 					}
-				}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "quake")	{
-					if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.qk.fq")	{
-						$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.qk.fq";
+				}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "correction")	{
+					if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.cor.fq")	{
+						$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.cor.fq";
 					}
 				}
 			}
@@ -1122,8 +1131,8 @@ sub data	{
 				$data{'pe'}->{$library} = [ ("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq") ];
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
 				$data{'pe'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq") ];
-			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "quake")	{
-				$data{'pe'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.qk.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.qk.fq") ];
+			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "correction")	{
+				$data{'pe'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.cor.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.cor.fq") ];
 			}
 		}
 	}
@@ -1150,8 +1159,8 @@ sub data	{
 				$data{'hqmp'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq") ];
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "nextclip")	{
 				$data{'hqmp'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq") ];
-			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "quake")	{
-				$data{'hqmp'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.qk.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.qk.fq") ];
+			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "correction")	{
+				$data{'hqmp'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.cor.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.cor.fq") ];
 			}
 		}
 	}
