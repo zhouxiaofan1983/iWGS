@@ -8,11 +8,11 @@ use Utilities;
 sub simulation	{
 	(my $library, my $global_opt, my $overwrite) = @_;
 
-	if ($global_opt->{'library'}->{$library}->{'simulator'} eq "pirs")        {
+	if ($global_opt->{'library'}->{$library}->{'simulator'} eq "pirs")	{
 		&pirs($library, $global_opt);	
-	}	elsif ($global_opt->{'library'}->{$library}->{'simulator'} eq "art")      {
+	}	elsif ($global_opt->{'library'}->{$library}->{'simulator'} eq "art")	{
 		&art($library, $global_opt);
-	}       elsif ($global_opt->{'library'}->{$library}->{'simulator'} eq "pbsim")    {
+	}	elsif ($global_opt->{'library'}->{$library}->{'simulator'} eq "pbsim")	{
 		&pbsim($library, $global_opt);
 	}
 
@@ -29,20 +29,20 @@ sub pirs	{
 	
 	print "Starts the simulation of library $library:\t".localtime()."\n";	
 
-	#set general options
+	# set general options
 	my $cmd = "$pirs_bin simulate --threads=$global_opt->{'threads'} --phred-offset=33 --eamss=quality --no-logs --read-len=$lib_opt->{'read_length'} --coverage=$lib_opt->{'depth'} --insert-len-mean=$lib_opt->{'frag_mean'} --insert-len-sd=$lib_opt->{'frag_sd'}";
 	
-	#set the average substitution error rate
+	# set the average substitution error rate
 	if ($lib_opt->{'error_rate'} != 1)	{
 		$cmd .= " --subst-error-rate=$lib_opt->{'error_rate'}";
 	}
 	
-	#set Base-calling profile
-	if (defined($lib_opt->{'error_profile'})) {
+	# set Base-calling profile
+	if (defined($lib_opt->{'error_profile'}))	{
 		$cmd .= " --subst-error-profile=$lib_opt->{'error_profile'}";
 	}
 	
-	#set GC content-bias profile
+	# set GC content-bias profile
 	if ($lib_opt->{'gc'})	{
 		if (defined($lib_opt->{'gc_profile'}))	{
 			$cmd .= " --gc-bias-profile=$lib_opt->{'gc_profile'}";
@@ -51,7 +51,7 @@ sub pirs	{
 		$cmd .= " --no-gc-bias";
 	}
 	
-	#set Indel error profile
+	# set Indel error profile
 	if ($lib_opt->{'indel'})	{
 		if (defined($lib_opt->{'indel_profile'}))	{
 			$cmd .= " --indel-error-profile=$lib_opt->{'indel_profile'}";
@@ -60,7 +60,7 @@ sub pirs	{
 		$cmd .= " --no-indels";
 	}
 	
-	#set library specific options
+	# set library specific options
 	if ($lib_opt->{'read_type'} eq "mp")	{
 		$cmd .= " --jumping";
 	}
@@ -69,7 +69,9 @@ sub pirs	{
 
 	&Utilities::execute_cmd($cmd, "$out_dir/logs/$library.simulation.log");
 	if (-s "$library\_$lib_opt->{'read_length'}\_$lib_opt->{'frag_mean'}\_1.fq" && -s "$library\_$lib_opt->{'read_length'}\_$lib_opt->{'frag_mean'}\_2.fq")	{
+		&Utilities::rename_fastq("$library\_$lib_opt->{'read_length'}\_$lib_opt->{'frag_mean'}\_1.fq", $library);
 		system("mv $library\_$lib_opt->{'read_length'}\_$lib_opt->{'frag_mean'}\_1.fq $library\_1.fq");
+		&Utilities::rename_fastq("$library\_$lib_opt->{'read_length'}\_$lib_opt->{'frag_mean'}\_2.fq", $library);
 		system("mv $library\_$lib_opt->{'read_length'}\_$lib_opt->{'frag_mean'}\_2.fq $library\_2.fq");
 		print "The simulation of library $library is finished successfully!\n\n";
 	}	else	{
@@ -89,7 +91,7 @@ sub art	{
 
 	print "Starts the simulation of library $library:\t".localtime()."\n";	
 	
-	#set general options
+	# set general options
 	my $cmd = "$art_bin -na -i $ref -l $lib_opt->{'read_length'} -f $lib_opt->{'depth'}";
 	if ($lib_opt->{'read_type'} eq "se")	{
 		$cmd .= " -qs $lib_opt->{'qual_shift1'} -ir $lib_opt->{'ins_rate1'} -dr $lib_opt->{'del_rate1'}";
@@ -97,7 +99,7 @@ sub art	{
 		$cmd .= " -qs $lib_opt->{'qual_shift1'} -qs2 $lib_opt->{'qual_shift2'} -ir $lib_opt->{'ins_rate1'} -ir2 $lib_opt->{'ins_rate2'} -dr $lib_opt->{'del_rate1'} -dr2 $lib_opt->{'del_rate2'}";
 	}
 
-	#set quality profiles
+	# set quality profiles
 	if (defined($lib_opt->{'qual_profile1'}))	{
 		$cmd .= " -1 $lib_opt->{'qual_profile1'}";
 	}
@@ -105,12 +107,12 @@ sub art	{
 		$cmd .= " -2 $lib_opt->{'qual_profile2'}";
 	}
 
-	#set MP library indicator
+	# set MP library indicator
 	if ($lib_opt->{'read_type'} eq "mp")	{
-		$cmd = " -mp";
+		$cmd .= " -mp";
 	}
 	
-	#set PE/MP library specific options, do nothing for SE library
+	# set PE/MP/HQMP library specific options, do nothing for SE library
 	if ($lib_opt->{'read_type'} eq "se")	{
 		$cmd .= " -o $library";
 	}	else	{
@@ -118,7 +120,12 @@ sub art	{
 	}
 
 	&Utilities::execute_cmd($cmd, "$out_dir/logs/$library.simulation.log");
-	if (($lib_opt->{'read_type'} eq "se" && -s "$library.fq") || (($lib_opt->{'read_type'} eq "pe" || $lib_opt->{'read_type'} eq "mp") && -s "$library\_1.fq" && -s "$library\_2.fq"))	{
+	if ($lib_opt->{'read_type'} eq "se" && -s "$library.fq")	{
+		&Utilities::rename_fastq("$library.fq", $library);
+		print "The simulation of library $library is finished successfully!\n\n";
+	}	elsif (($lib_opt->{'read_type'} =~ /^(pe|mp|hqmp)$/) && -s "$library\_1.fq" && -s "$library\_2.fq")	{
+		&Utilities::rename_fastq("$library\_1.fq", $library);
+		&Utilities::rename_fastq("$library\_2.fq", $library);
 		print "The simulation of library $library is finished successfully!\n\n";
 	}	else	{
 		print "The simulation of library $library failed!\n\n";
@@ -139,7 +146,7 @@ sub pbsim	{
 	
 	mkdir("pbsim_tmp");
 
-	#conver mean and sd of accuracy to parameters of Weibull distribution
+	# conver mean and sd of accuracy to parameters of Weibull distribution
 	open PBSIM, "> pbsim_tmp/pbsim.R" or die "Can't write to pbsim_tmp/pbsim.R!\n";
 	print PBSIM "mean = $lib_opt->{'accuracy_mean'}\nsd = $lib_opt->{'accuracy_sd'}\nk = (sd/mean)^(-1.086)\nc = mean/(gamma(1+1/k))\nk\nc\n";
 	close (PBSIM);
@@ -153,7 +160,7 @@ sub pbsim	{
 		$scale = int($1*100+0.5)/100;
 	}
 	
-	#set the command for PBSIM
+	# set the command for PBSIM
 	my $cmd = "$pbsim_bin --data-type ".uc($lib_opt->{'read_type'})." --depth $lib_opt->{'depth'} --length-min $lib_opt->{'length_min'} --length-max $lib_opt->{'length_max'} --length-mean $lib_opt->{'length_mean'} --length-sd $lib_opt->{'length_sd'} --model_qc $lib_opt->{'model_qc'} --accuracy-min $lib_opt->{'accuracy_min'} --accuracy-max $lib_opt->{'accuracy_max'} --accuracy-mean $scale --accuracy-sd $shape --difference-ratio $lib_opt->{'ratio'} --prefix pbsim_tmp/$library $ref";
 
 	&Utilities::execute_cmd($cmd, "$out_dir/logs/$library.simulation.log");

@@ -20,6 +20,8 @@ sub init_global_opt	{
 		"threads" => 1,
 		"memory" => 8,
 		"out_dir" => getcwd(),
+		"pricing_info" => undef,
+		"custom_weight" => undef,
 		"qc" => undef,
 		"pirs" => {
 			"error_rate" => 1,						# set to "1" to use default setting of pIRS
@@ -49,15 +51,18 @@ sub init_global_opt	{
 			"accuracy_min" => "0.75",
 		},
 		"trimmomatic" => {
+			"on" => 0,
 			"trailing" => "3",
 			"adapters" => undef,
 			"minlen" => "25",
 		},
 		"nextclip" => {
+			"on" => 0,
 			"adapter" => "CTGTCTCTTATACACATCT",
 			"minlen" => "25",
 		},
 		"correction" => {
+			"on" => 1,
 			"tool" => "lighter",
 			"kmer" => 0,
 		},
@@ -79,6 +84,9 @@ sub init_global_opt	{
 		"minia" => {
 			"kmer" => 0,
 			"min-abundance" => 0,
+		},
+		"platanus" => {
+			"kmer" => 0,
 		},
 		"sga" => {
 			"kmer" => 31,
@@ -108,6 +116,10 @@ sub init_global_opt	{
 			"gage" => 1,
 			"gene" => undef,
 		},
+		"reapr" => {
+			"short" => undef,
+			"long" => undef,
+		},
 		"library" => undef,
 		"protocol" => undef,
 	);
@@ -127,6 +139,7 @@ sub init_global_opt	{
 	$global_opt{'bin'}->{'discovar'} = (-e "$root_dir/tools/DISCOVAR/bin/DiscovarExp") ? "$root_dir/tools/DISCOVAR/bin/DiscovarExp" : File::Which::which("DiscovarExp");
 	$global_opt{'bin'}->{'masurca'} = (-e "$root_dir/tools/MaSuRCA/bin/masurca") ? "$root_dir/tools/MaSuRCA/bin/masurca" : File::Which::which("masurca");
 	$global_opt{'bin'}->{'minia'} = (-e "$root_dir/tools/Minia/minia") ? "$root_dir/tools/Minia/minia" : File::Which::which("minia");
+	$global_opt{'bin'}->{'platanus'} = (-e "$root_dir/tools/Platanus/platanus") ? "$root_dir/tools/Platanus/platanus" : File::Which::which("platanus");
 	$global_opt{'bin'}->{'sga'} = (-e "$root_dir/tools/SGA/bin/sga") ? "$root_dir/tools/SGA/bin/sga" : File::Which::which("sga");
 	$global_opt{'bin'}->{'soapdenovo2'} = (-e "$root_dir/tools/SOAPdenovo2/SOAPdenovo2") ? "$root_dir/tools/SOAPdenovo2/SOAPdenovo2" : File::Which::which("SOAPdenovo2");
 	$global_opt{'bin'}->{'spades'} = (-e "$root_dir/tools/SPAdes/bin/spades.py") ? "$root_dir/tools/SPAdes/bin/spades.py" : File::Which::which("spades.py");
@@ -134,11 +147,13 @@ sub init_global_opt	{
 	$global_opt{'bin'}->{'velvetg'} = (-e "$root_dir/tools/Velvet/velvetg") ? "$root_dir/tools/Velvet/velvetg" : File::Which::which("velvetg");
 	$global_opt{'bin'}->{'velveth'} = (-e "$root_dir/tools/Velvet/velveth") ? "$root_dir/tools/Velvet/velveth" : File::Which::which("velveth");
 	$global_opt{'bin'}->{'quast'} = (-e "$root_dir/tools/QUAST/quast.py") ? "$root_dir/tools/QUAST/quast.py" : File::Which::which("quast.py");
+	$global_opt{'bin'}->{'reapr'} = (-e "$root_dir/tools/Reapr/reapr") ? "$root_dir/tools/Reapr/reapr" : File::Which::which("reapr");
 	$global_opt{'bin'}->{'bank-transact'} = (-e "$root_dir/tools/dependencies/bank-transact") ? "$root_dir/tools/dependencies/bank-transact" : File::Which::which("bank-transact");
 	$global_opt{'bin'}->{'blasr'} = (-e "$root_dir/tools/CA/Linux-amd64/bin/blasr") ? "$root_dir/tools/CA/Linux-amd64/bin/blasr" : File::Which::which("blasr");
 	$global_opt{'bin'}->{'bwa'} = (-e "$root_dir/tools/dependencies/bwa") ? "$root_dir/tools/dependencies/bwa" : File::Which::which("bwa");
 	$global_opt{'bin'}->{'pbdagcon'} = (-e "$root_dir/tools/CA/Linux-amd64/bin/pbdagcon") ? "$root_dir/tools/CA/Linux-amd64/bin/pbdagcon" : File::Which::which("pbdagcon");
 	$global_opt{'bin'}->{'samtools'} = (-e "$root_dir/tools/dependencies/samtools") ? "$root_dir/tools/dependencies/samtools" : File::Which::which("samtools");
+	$global_opt{'bin'}->{'fastx'} = (-e "$root_dir/tools/dependencies/fastx_reverse_complement") ? "$root_dir/tools/dependencies/fastx_reverse_complement" : File::Which::which("fastx_reverse_complement");
 		
 	$global_opt{'pbsim'}->{'model_qc'} = (defined($global_opt{'bin'}->{'pbsim'})) ? dirname($global_opt{'bin'}->{'pbsim'})."/../data/model_qc_clr" : undef;
 
@@ -242,6 +257,8 @@ sub check_global_opt	{
 	my $cwd = getcwd();
 	if (defined($global_opt->{'genome'}) && $global_opt->{'genome'} !~ /^\//) { $global_opt->{'genome'} = $cwd."/".$global_opt->{'genome'}; }
 	if (defined($global_opt->{'out_dir'}) && $global_opt->{'out_dir'} !~ /^\//) { $global_opt->{'out_dir'} = $cwd."/".$global_opt->{'out_dir'}; }
+	if (defined($global_opt->{'pricing_info'}) && $global_opt->{'pricing_info'} !~ /^\//) { $global_opt->{'pricing_info'} = $cwd."/".$global_opt->{'pricing_info'}; }
+	if (defined($global_opt->{'custom_weight'}) && $global_opt->{'custom_weight'} !~ /^\//) { $global_opt->{'custom_weight'} = $cwd."/".$global_opt->{'custom_weight'}; }
 	if (defined($global_opt->{'trimmomatic'}->{'adapters'}) && $global_opt->{'trimmomatic'}->{'adapters'} !~ /^\//) { $global_opt->{'trimmomatic'}->{'adapters'} = $cwd."/".$global_opt->{'trimmomatic'}->{'adapters'}; }
 	if (defined($global_opt->{'pirs'}->{'error_profile'}) && $global_opt->{'pirs'}->{'error_profile'} !~ /^\//) { $global_opt->{'pirs'}->{'error_profile'} = $cwd."/".$global_opt->{'pirs'}->{'error_profile'}; }
 	if (defined($global_opt->{'pirs'}->{'gc_profile'}) && $global_opt->{'pirs'}->{'gc_profile'} !~ /^\//) { $global_opt->{'pirs'}->{'gcc_profile'} = $cwd."/".$global_opt->{'pirs'}->{'gc_profile'}; }
@@ -257,6 +274,8 @@ sub check_global_opt	{
 	unless ($global_opt->{'genome_size'} =~ /^\d+$/ && (defined($global_opt->{'genome'}) || ($real == 1 && $global_opt->{'genome_size'} > 0))) { push @err_msg, "\tThe genome size should be an integer no less than zero (must be positive if a reference genome is not provided).\n"; }
 	unless ($global_opt->{'threads'} =~ /^\d+$/ && $global_opt->{'threads'} > 0) { push @err_msg, "\tThe number of threads to use should be a positive integer.\n"; }
 	unless ($global_opt->{'memory'} =~ /^\d+$/ && $global_opt->{'memory'} > 0) { push @err_msg, "\tThe amount of memory to use should be a positive integer.\n"; }
+	unless (!defined($global_opt->{'pricing_info'}) || (defined($global_opt->{'pricing_info'}) && -e $global_opt->{'pricing_info'})) { push @err_msg, "\tThe pricing information file does not exist.\n"; }
+	unless (!defined($global_opt->{'custom_weight'}) || (defined($global_opt->{'custom_weight'}) && -e $global_opt->{'custom_weight'})) { push @err_msg, "\tThe custom weight file for assembly ranking does not exist.\n"; }
 	# check the settings of libraries and assembly protocols (e.g. if executables are available, if libraries and protocols are compatible)
 	if (defined($global_opt->{'library'}) && defined($global_opt->{'protocol'}))	{
 		# if QC is turn on, prepare QC settings for relevant libraries
@@ -272,12 +291,26 @@ sub check_global_opt	{
 		&default_protocol($global_opt);
 		push @warn_msg, "\tNo library or assembly protocol specified, continue with the default settings.\n";
 	}
-	# check the settings for QUAST
-	unless (defined($global_opt->{'bin'}->{'quast'}) && -e $global_opt->{'bin'}->{'quast'}) { push @err_msg, "\tThe required genome assembly evaluation tool QUAST is not available.\n";}
-	unless ($global_opt->{'quast'}->{'eukaryote'} =~ /^[01]$/) { push @err_msg, "\tThe option \"QUAST.eukaryote\" should be either \"0\" or \"1\".\n"; }
-	unless ($global_opt->{'quast'}->{'gage'} =~ /^[01]$/) { push @err_msg, "\tThe option \"QUAST.gage\" should be either \"0\" or \"1\".\n"; }
-	unless (!defined($global_opt->{'quast'}->{'gene'}) || -e $global_opt->{'quast'}->{'gene'}) { push @err_msg, "\tThe gene annotation file for QUAST does not exist.\n"; }
-
+	# check evaluation settings
+	if (defined($global_opt->{'reapr'}->{'short'}) || defined($global_opt->{'reapr'}->{'long'}))	{
+		if (defined($global_opt->{'reapr'}->{'long'}))	{
+			# use REAPR if at least one "long" library is provided
+			unless (defined($global_opt->{'bin'}->{'reapr'}) && -e $global_opt->{'bin'}->{'reapr'}) { push @err_msg, "\tThe required genome assembly evaluation tool REAPR is not available.\n";}
+			&check_reapr($global_opt, "long", \@err_msg);
+			if (defined($global_opt->{'reapr'}->{'short'}))	{
+				&check_reapr($global_opt, "short", \@err_msg);
+			}
+		}	else	{
+			push @err_msg, "\tREAPR evaluation requires at least one \"long\" library.\n";
+		}
+	}	else	{
+		# use QUAST if no library is specified for REPAR 
+		unless (defined($global_opt->{'bin'}->{'quast'}) && -e $global_opt->{'bin'}->{'quast'}) { push @err_msg, "\tThe required genome assembly evaluation tool QUAST is not available.\n";}
+		unless ($global_opt->{'quast'}->{'eukaryote'} =~ /^[01]$/) { push @err_msg, "\tThe option \"QUAST.eukaryote\" should be either \"0\" or \"1\".\n"; }
+		unless ($global_opt->{'quast'}->{'gage'} =~ /^[01]$/) { push @err_msg, "\tThe option \"QUAST.gage\" should be either \"0\" or \"1\".\n"; }
+		unless (!defined($global_opt->{'quast'}->{'gene'}) || -e $global_opt->{'quast'}->{'gene'}) { push @err_msg, "\tThe gene annotation file for QUAST does not exist.\n"; }
+	}
+	
 	# if one or more warnings were detected, print out the message
 	if (@warn_msg)	{
 		my $warn_msg = join "", @warn_msg;
@@ -301,8 +334,8 @@ sub qc_setup	{
 
 	# read in adapter seuqneces for Trimmomatic adapter trimming
 	my %adapter; my %invalid;
-	if (defined($global_opt->{'trimmomatic'}->{'adapters'}))	{
-		if  (-e $global_opt->{'trimmomatic'}->{'adapters'})	{
+	if ($global_opt->{'trimmomatic'}->{'on'} && defined($global_opt->{'trimmomatic'}->{'adapters'}))	{
+		if (-e $global_opt->{'trimmomatic'}->{'adapters'})	{
 			open ADAPTER, "< $global_opt->{'trimmomatic'}->{'adapters'}" or die "Can't open $global_opt->{'trimmomatic'}->{'adapters'}!\n";
 			while (<ADAPTER>)	{
 				next unless /\w/;
@@ -339,27 +372,31 @@ sub qc_setup	{
 			}	else	{
 				# set the QC flag for qualified library
 				$global_opt->{'library'}->{$library}->{'qc'} = 1;
-				# set Trimmomatic quality trimming parameters
-				$global_opt->{'library'}->{$library}->{'tm-trailing'} = $global_opt->{'trimmomatic'}->{'trailing'};
-				$global_opt->{'library'}->{$library}->{'tm-minlen'} = $global_opt->{'trimmomatic'}->{'minlen'};
-				if ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(se|pe|hqmp)$/)	{
-					# set error correction parameters for qualified SE/PE/HQMP library
-					$global_opt->{'library'}->{$library}->{'ec-tool'} = lc($global_opt->{'correction'}->{'tool'});
-					$global_opt->{'library'}->{$library}->{'ec-kmer'} = $global_opt->{'correction'}->{'kmer'};
-				}
-				if ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(mp|hqmp)$/)	{
-					# set adapter sequence for MP/HQMP library
+				# set NextClip parameters for MP library
+				if ($global_opt->{'library'}->{$library}->{'read_type'} eq 'mp')	{
+					$global_opt->{'library'}->{$library}->{'nc-on'} = $global_opt->{'nextclip'}->{'on'};
 					$global_opt->{'library'}->{$library}->{'nc-adapter'} = $global_opt->{'nextclip'}->{'adapter'};
 					$global_opt->{'library'}->{$library}->{'nc-minlen'} = $global_opt->{'nextclip'}->{'minlen'};
 				}
-			}
-			if (defined($adapter{$library}))        {
-				if ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(se|pe)$/) {
-					$global_opt->{'library'}->{$library}->{'tm-adapter'} = $adapter{$library};
-				}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(mp|hqmp)$/)	{
-					push @warn_msg, "\t\tTrimmomatic adapter trimming is not compatible with ".uc($global_opt->{'library'}->{$library}->{'read_type'})." library (use NextClip instead), will be ignored.\n";
+				# set Trimmomatic quality trimming parameters
+				$global_opt->{'library'}->{$library}->{'tm-on'} = $global_opt->{'trimmomatic'}->{'on'};
+				$global_opt->{'library'}->{$library}->{'tm-trailing'} = $global_opt->{'trimmomatic'}->{'trailing'};
+				$global_opt->{'library'}->{$library}->{'tm-minlen'} = $global_opt->{'trimmomatic'}->{'minlen'};
+				# set Trimmomatic adapter sequences for SE/PE libraries
+				if (defined($adapter{$library}))	{
+					if ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(se|pe)$/) {
+						$global_opt->{'library'}->{$library}->{'tm-adapter'} = $adapter{$library};
+					}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "mp")	{
+						push @warn_msg, "\t\tTrimmomatic adapter trimming is not compatible with ".uc($global_opt->{'library'}->{$library}->{'read_type'})." library (use NextClip instead), will be ignored.\n";
+					}
+					delete $adapter{$library};
 				}
-				delete $adapter{$library};
+				# set error correction parameters for SE/PE/HQMP library, and MP library only if NextClip trimming is enabled
+				unless ($global_opt->{'library'}->{$library}->{'read_type'} eq 'mp' && !$global_opt->{'nextclip'}->{'on'})	{
+					$global_opt->{'library'}->{$library}->{'ec-on'} = $global_opt->{'correction'}->{'on'};
+					$global_opt->{'library'}->{$library}->{'ec-tool'} = lc($global_opt->{'correction'}->{'tool'});
+					$global_opt->{'library'}->{$library}->{'ec-kmer'} = $global_opt->{'correction'}->{'kmer'};
+				}
 			}
 		}	else	{
 			push @err_msg, "\t\tthe library $library does not exist.\n";	
@@ -413,17 +450,19 @@ sub check_libraries	{
 				if ($libraries->{$library}->{'read_type'} eq "pe" && $libraries->{$library}->{'frag_mean'} >= 2000)	{
 					push @err_msg, "\t\tthe mean fragment size of a PE library should be smaller than 2kbp.\n";
 				}	elsif ($libraries->{$library}->{'read_type'} =~ /^(mp|hqmp)$/ && $libraries->{$library}->{'frag_mean'} < 2000)	{
-					push @err_msg, "\t\tthe mean fragment size of a MP library should not be smaller than 2kbp.\n";
+					push @err_msg, "\t\tthe mean fragment size of a (HQ)MP library should not be smaller than 2kbp.\n";
 				}
 				# check the standard deviation of insert size, must be greater than 0
 				unless (defined($libraries->{$library}->{'frag_sd'}) && $libraries->{$library}->{'frag_sd'} =~ /^\d+$/) { push @err_msg, "\t\tthe standard deviation of insert size should be a number no less than zero.\n"; }
 				# check the read length, must be greater than 0
 				if (defined($libraries->{$library}->{'read_length'}) && $libraries->{$library}->{'read_length'} =~ /^\d+$/ && $libraries->{$library}->{'read_length'} > 0)	{
-					if ($libraries->{$library}->{'read_length'} <= 100)	{
-						&check_library("pirs", $libraries->{$library}, $global_opt, \@err_msg, \@warn_msg);
-					}	else	{
-						&check_library("art", $libraries->{$library}, $global_opt, \@err_msg, \@warn_msg);
-					}	
+					
+					# switch to ART for simulation of all Illumina data
+					#if ($libraries->{$library}->{'read_length'} <= 100)	{
+					#	&check_library("pirs", $libraries->{$library}, $global_opt, \@err_msg, \@warn_msg);
+					#}	else	{
+					&check_library("art", $libraries->{$library}, $global_opt, \@err_msg, \@warn_msg);
+					#}	
 				}	else	{
 					push @err_msg, "\t\tthe read length must be a positive integer.\n";
 				}
@@ -480,7 +519,7 @@ sub check_library	{
 	}
 
 	# list general settings for each simulator
-	my %general_settings = (
+	my %simulator_settings = (
 		"pirs" => {
 			"depth" => 1,
 			"read_type" => 1,
@@ -502,24 +541,24 @@ sub check_library	{
 			"accuracy_sd" => 1,
 		},
 	);
+
 	# list QC settings
 	my %qc_settings = (
+		"nc-on" => "nextclip",
+		"nc-adapter" => "nextclip",
+		"nc-minlen" => "nextclip",
+		"tm-on" => "trimmomatic",
 		"tm-trailing" => "trimmomatic",
 		"tm-adapter" => "trimmomatic",
 		"tm-minlen" => "trimmomatic",
-		"nc-adapter" => "nextclip",
-		"nc-minlen" => "nextclip",
+		"ec-on" => "correction",
 		"ec-tool" => "correction",
 		"ec-kmer" => "correction",
 	);
-	# record all QC tasks
-	my %qc_task;
+
 	# check if settings for the library is compatible with the simulator
 	foreach my $key (keys %{$library})	{
-		unless ($key eq "simulator" || exists $general_settings{$simulator}->{$key} || exists $global_opt->{$simulator}->{$key} || $key eq "qc" || exists $qc_settings{$key}) { push @{$err_msg}, "\t\tthe option \"$key\" is not compatible with the simulator $simulator{$simulator} or the QC tools.\n"; }
-		if (defined($qc_settings{$key}))	{
-			$qc_task{$qc_settings{$key}} = 1;
-		}
+		unless ($key eq "simulator" || exists $simulator_settings{$simulator}->{$key} || exists $global_opt->{$simulator}->{$key} || $key eq "qc" || exists $qc_settings{$key}) { push @{$err_msg}, "\t\tthe option \"$key\" is not compatible with the simulator $simulator{$simulator} or the QC tools.\n"; }
 	}
 	
 	# check settings for each simulator
@@ -554,38 +593,49 @@ sub check_library	{
 	}
 
 	# check QC settings
-	if (defined($library->{'qc'}) && $library->{'qc'} == 1)	{
-		unless (%qc_task)	{
+	if (defined($library->{'qc'}) && $library->{'qc'} eq "1")	{
+		unless ($library->{'nc-on'} || $library->{'tm-on'} || $library->{'ec-on'})	{
 			$library->{'qc'} = 0;
-			push @{$warn_msg}, "\t\tQC is enabled for this library with NO QC task specified, will be ignored.\n";
+			push @{$warn_msg}, "\t\tQC is enabled for this library with no QC task specified, will be ignored.\n";
 		}
-		if (defined($qc_task{'trimmomatic'}))	{
-			unless (defined($global_opt->{'bin'}->{'trimmomatic'}) && -e $global_opt->{'bin'}->{'trimmomatic'}) { push @{$err_msg}, "\t\tthe required quality control tool Trimmomatic is not available.\n"; }
-			unless (!defined($library->{'tm-trailing'}) || $library->{'tm-trailing'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe threshold of Trimmomatic quality-based trimming should be an integer no less than zero.\n"; }
-			unless (!defined($library->{'tm-minlen'}) || $library->{'tm-minlen'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe minimum read length after Trimmomatic trimming should be an integer no less than zero.\n"; }
-			if (defined($library->{'tm-adapter'}))	{
-				if ($library->{'read_type'} =~ /^(se|pe)$/)	{
-					# convert relatvie path to absolute path
-					if ($library->{'tm-adapter'} !~ /^\//) {
-						$library->{'tm-adapter'} = getcwd()."/".$library->{'tm-adapter'};
-					}
-					unless (-e $library->{'tm-adapter'}) { push @{$err_msg}, "\t\tthe adapter sequence file for Trimmomatic does not exist.\n"; }
-				}	else	{
-					push @{$err_msg}, "\t\tTrimmomatic adapter trimming is not compatible with ".uc($library->{'read_type'})." library.\n";
-				}
-			}
-		}
-		if (defined($qc_task{'nextclip'}))	{
-			if ($library->{'read_type'} =~ /^(mp|hqmp)$/)	{
+		if ($library->{'nc-on'})	{
+			unless ($library->{'nc-on'} =~ /^[01]$/) { push @{$err_msg}, "\t\tthe NextClip on/off switch should be either \"0\" or \"1\".\n"; }
+			if ($library->{'read_type'} eq "mp")	{
 				unless (defined($global_opt->{'bin'}->{'nextclip'}) && -e $global_opt->{'bin'}->{'nextclip'}) { push @{$err_msg}, "\t\tthe required quality control tool NextClip is not available.\n"; }
+				unless (defined($global_opt->{'bin'}->{'fastx'}) && -e $global_opt->{'bin'}->{'fastx'}) { push @{$err_msg}, "\t\tthe required quality control tool FASTX is not available.\n"; }
 				unless (defined($library->{'nc-adapter'}) && $library->{'nc-adapter'} =~ /^[ATCG]+$/) { push @{$err_msg}, "\t\tadapter must be a valid DNA sequence"; }
 				unless (defined($library->{'nc-minlen'}) && $library->{'nc-minlen'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe minimum read length after NextClip adapter trimming should be an integer no less than zero.\n"; }
 			}	else	{
 				push @{$err_msg}, "\t\tNextClip adapter trimming is not compatible with ".uc($library->{'read_type'})." library.\n";
 			}
 		}
-		if (defined($qc_task{'correction'}))	{
-			if ($library->{'read_type'} =~ /^(se|pe|hqmp)$/)	{
+		if ($library->{'tm-on'})	{
+			unless ($library->{'tm-on'} =~ /^[01]$/) { push @{$err_msg}, "\t\tthe Trimmomatic on/off switch should be either \"0\" or \"1\".\n"; }
+			if ($library->{'read_type'} =~ /^(se|pe|mp|hqmp)$/)	{
+				unless (defined($global_opt->{'bin'}->{'trimmomatic'}) && -e $global_opt->{'bin'}->{'trimmomatic'}) { push @{$err_msg}, "\t\tthe required quality control tool Trimmomatic is not available.\n"; }
+				unless (!defined($library->{'tm-trailing'}) || $library->{'tm-trailing'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe threshold of Trimmomatic quality-based trimming should be an integer no less than zero.\n"; }
+				unless (!defined($library->{'tm-minlen'}) || $library->{'tm-minlen'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe minimum read length after Trimmomatic trimming should be an integer no less than zero.\n"; }
+				if (defined($library->{'tm-adapter'}))	{
+					if ($library->{'read_type'} =~ /^(se|pe)$/)	{
+						# convert relatvie path to absolute path
+						if ($library->{'tm-adapter'} !~ /^\//) {
+							$library->{'tm-adapter'} = getcwd()."/".$library->{'tm-adapter'};
+						}
+						unless (-e $library->{'tm-adapter'}) { push @{$err_msg}, "\t\tthe adapter sequence file for Trimmomatic does not exist.\n"; }
+					}	else	{
+						push @{$err_msg}, "\t\tTrimmomatic adapter trimming is not compatible with ".uc($library->{'read_type'})." library.\n";
+					}
+				}
+			}	else	{
+				push @{$err_msg}, "\t\tTrimmomatic trimming is not compatible with ".uc($library->{'read_type'})." library.\n";
+			}
+		}
+		if ($library->{'ec-on'})	{
+			unless ($library->{'ec-on'} =~ /^[01]$/) { push @{$err_msg}, "\t\tthe error correction on/off switch should be either \"0\" or \"1\".\n"; }
+			if ($library->{'read_type'} eq "mp" && !$library->{'nc-on'})	{
+				push @{$err_msg}, "\t\tthe error correction can be performed on a MP library only if it is processed by NextClip.\n";
+			}
+			if ($library->{'read_type'} =~ /^(se|pe|mp|hqmp)$/)	{
 				if (defined($global_opt->{'correction'}->{'tool'}))	{
 					$global_opt->{'correction'}->{'tool'} = lc($global_opt->{'correction'}->{'tool'});
 				}
@@ -603,10 +653,10 @@ sub check_library	{
 		}
 	}	else	{
 		$library->{'qc'} = 0;
-		if (%qc_task)	{
-			foreach my $key (%qc_settings)	{
-				if (exists $library->{$key})	{ delete $library->{$key}; }
-			}
+		if ($library->{'nc-on'} || $library->{'tm-on'} || $library->{'ec-on'})	{
+			$library->{'nc-on'} = 0;
+			$library->{'tm-on'} = 0;
+			$library->{'ec-on'} = 0;
 			push @{$warn_msg}, "\t\tQC is turned off for this library, all QC settings will be ignored.\n";
 		}
 	}
@@ -628,6 +678,7 @@ sub check_protocols	{
 		"discovar" => "DISCOVAR de novo",
 		"masurca" => "MaSuRCA",
 		"minia" => "Minia",
+		"platanus" => "Platanus",
 		"sga" => "SGA",
 		"soapdenovo2" => "SOAPdenovo2",
 		"spades" => "SPAdes",
@@ -675,9 +726,6 @@ sub check_protocols	{
 		}
 		if ((defined($kmergenie{$assembler}) && $protocols->{$protocol}->{'kmer'} eq "0") || ($assembler eq "minia" && $protocols->{$protocol}->{'min-abundance'} eq "0"))	{
 			unless (defined($global_opt->{'bin'}->{'kmergenie'}) && -e $global_opt->{'bin'}->{'kmergenie'}) { push @err_msg, "\t\tthe k-mer optimizer KmerGenie is not available.\n"; }
-		}	elsif ($assembler eq "discovar")	{
-			# DEPRECATED: earlier versions of DISCOVAR requires input files to be in BAM format
-			# unless (defined($global_opt->{'bin'}->{'picard'}) && -e $global_opt->{'bin'}->{'picard'}) { push @err_msg, "\t\tthe required tool Picard is not available.\n"; }
 		}
 
 		# check assembler specific options
@@ -693,6 +741,8 @@ sub check_protocols	{
 		}	elsif ($assembler eq "minia")	{
 			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/ && ($protocols->{$protocol}->{'kmer'} == 0 || $protocols->{$protocol}->{'kmer'}%2 == 1)) { push @err_msg, "\t\tthe option \"kmer\" should be \"0\" or an odd number.\n"; }
 			unless ($protocols->{$protocol}->{'min-abundance'} =~ /^\d+$/) { push @err_msg, "\t\tthe option \"min-abundance\" should be an integer no less than zero.\n"; }
+		}	elsif ($assembler eq "platanus")	{
+			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/) { push @err_msg, "\t\tthe option \"kmer\" should be an integer no less than zero.\n"; }
 		}	elsif ($assembler eq "sga")	{
 			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/ && $protocols->{$protocol}->{'kmer'} > 0) { push @err_msg, "\t\tthe option \"kmer\" should be a positive integer.\n"; }
 			unless ($protocols->{$protocol}->{'min-overlap'} =~ /^\d+$/ && $protocols->{$protocol}->{'min-overlap'} > 0) { push @err_msg, "\t\tthe option \"min-overlap\" should be a positive integer.\n"; }
@@ -730,14 +780,18 @@ sub check_compatibility	{
 		my %read_type;
 		foreach my $library (@{$protocols->{$protocol}->{'library'}})	{
 			if (defined($libraries->{$library}))	{
-				$read_type{$libraries->{$library}->{'read_type'}}->{$library} = 1;
+				if ($libraries->{$library}->{'read_type'} eq "mp" && $libraries->{$library}->{'nc-on'})	{
+					$read_type{'hqmp'}->{$library} = 1;
+				}	else	{
+					$read_type{$libraries->{$library}->{'read_type'}}->{$library} = 1;
+				}
 			}	else	{
 				push @err_msg, "\t\tthe required library $library does not exist.\n";
 			}
 		}
-		if ($protocols->{$protocol}->{'assembler'} eq "abyss")	{			# a ABYSS protocol should have at least one PE library, and no PacBio library
-			unless (exists $read_type{'pe'})	{
-				push @err_msg, "\t\tABYSS requires at least one PE library.\n";
+		if ($protocols->{$protocol}->{'assembler'} eq "abyss")	{			# a ABYSS protocol should have at least one PE/HQMP library, and no PacBio library
+			unless (exists $read_type{'pe'} || exists $read_type{'hqmp'})	{
+				push @err_msg, "\t\tABYSS requires at least one PE/HQMP library.\n";
 			}
 			if (exists $read_type{'clr'})	{
 				push @err_msg, "\t\tABYSS is not compatible with PacBio reads.\n";
@@ -753,7 +807,7 @@ sub check_compatibility	{
 				push @err_msg, "\t\tALLPATHS-LG requires at least one overlapping PE library.\n";
 			}
 			unless (exists $read_type{'mp'} || exists $read_type{'hqmp'})	{
-				push @err_msg, "\t\tALLPATHS-LG requires at least one (H)MP library.\n";
+				push @err_msg, "\t\tALLPATHS-LG requires at least one MP library.\n";
 			}
 		}	elsif ($protocols->{$protocol}->{'assembler'} eq "ca")	{		# a Celera Assembler protocol should have at least 10x PacBio reads for hybrid assembly, or at least 30x PacBio reads for self-correction assembly
 			my $clr_depth = 0;
@@ -778,10 +832,10 @@ sub check_compatibility	{
 					unless ($clr_depth >= 30)	{
 						push @err_msg, "\t\tCelera Assembler recommands at least 30x coverage PacBio reads for self-correction assembly.\n";
 					}
-					if ($protocols->{$protocol}->{'pbcns'} == 0)	{
+					if ($protocols->{$protocol}->{'pbcns'} == 1)	{
 						unless (defined($global_opt->{'bin'}->{'blasr'}) && defined($global_opt->{'bin'}->{'pbdagcon'}))	{
-							push @warn_msg, "\t\tCelera Assembler requires both \"blasr\" and \"pbdagcon\" for self-correction assembly using PBDAGCON. Will swtich to Falcon.\n";
-							$protocols->{$protocol}->{'pbcns'} = 1;
+							push @warn_msg, "\t\tCelera Assembler requires both \"blasr\" and \"pbdagcon\" for self-correction assembly using PBDAGCON. Will swtich off the \"pbcns\" option.\n";
+							$protocols->{$protocol}->{'pbcns'} = 0;
 						}
 					}
 				}
@@ -791,14 +845,14 @@ sub check_compatibility	{
 					push @err_msg, "\t\tCelera Assembler requires at least one SE/PE/HQMP library for illumina-only assembly.\n";
 				}
 			}
-		}	elsif ($protocols->{$protocol}->{'assembler'} eq "discovar")  {		# a DISCOVAR de novo protocol should have a single PE library, and the insert size should be no greater than three times the read length (which should be at least 100bp)
+		}	elsif ($protocols->{$protocol}->{'assembler'} eq "discovar")	{	# a DISCOVAR de novo protocol should have a single PE library, and the insert size should be no greater than three times the read length (which should be at least 100bp)
 			if (!(exists $read_type{'pe'}) || scalar keys %read_type > 1)	{
 				push @err_msg, "\t\tDiscovar de novo is only compatible with PE libraries.\n";
 			}	else	{
 				foreach my $pe_lib (keys %{$read_type{'pe'}})	{
 					unless ($libraries->{$pe_lib}->{'read_length'} >= 100 && $libraries->{$pe_lib}->{'read_length'}*3 >= $libraries->{$pe_lib}->{'frag_mean'})	{
 						push @err_msg, "\t\tDiscovar de novo requires PE libraries whose insert size is not substantially larger than the read length (which should be at least 100bp).\n";
-				}
+					}
 				}
 			}
 		}	elsif ($protocols->{$protocol}->{'assembler'} eq "masurca")	{	# a MaSuRCA protocol should have at least one SE/PE/HQMP library, and no PacBio library
@@ -817,6 +871,13 @@ sub check_compatibility	{
 			}
 			if (exists $read_type{'clr'})	{
 				push @err_msg, "\t\tMinia is not compatible with PacBio reads.\n";
+			}
+		}	elsif ($protocols->{$protocol}->{'assembler'} eq "platanus")	{	# a Platanus protocol should have at least one SE/PE library, and no PacBio library
+			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hqmp'})	{
+				push @err_msg, "\t\tPlatanus requires at least one SE/PE/HQMP library.\n";
+			}
+			if (exists $read_type{'clr'})	{
+				push @err_msg, "\t\tPlatanus is not compatible with PacBio reads.\n";
 			}
 		}	elsif ($protocols->{$protocol}->{'assembler'} eq "sga")	{		# a SGA protocol should have at least one SE/PE/HQMP library (recommends 100bp or longer), and no PacBio library
 			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hqmp'})	{
@@ -843,6 +904,11 @@ sub check_compatibility	{
 		}	elsif ($protocols->{$protocol}->{'assembler'} eq "velvet")	{	# a Velvet protocol should have at least one SE/PE/HQMP library, and no PacBio library
 			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hqmp'})	{
 				push @err_msg, "\t\tVelvet requires at least one SE/PE/HQMP library.\n";
+			}
+			if (exists $read_type{'mp'})	{
+				unless (defined($global_opt->{'bin'}->{'fastx'}) && -e $global_opt->{'bin'}->{'fastx'})	{
+					push @err_msg, "\t\tVelvet requires FASTX to process MP libraries.\n";
+				}
 			}
 			if (exists $read_type{'clr'})	{
 				push @err_msg, "\t\tVelvet is not compatible with PacBio reads.\n";
@@ -917,7 +983,32 @@ sub default_protocol	{
 }
 
 #############################
-# read global options from  individual configuration files
+# check libraries for REAPR evaluation
+#############################
+sub check_reapr	{
+	(my $global_opt, my $type, my $err_msg) = @_;
+
+	my @library = split /\,/, $global_opt->{'reapr'}->{$type};
+	foreach my $library (@library)	{
+		unless (defined($global_opt->{'library'}->{$library}))	{
+			push @{$err_msg}, "\tThe library $library for REPAR evaluation is invalid!\n";
+		}
+		my $read_type = $global_opt->{'library'}->{$library}->{'read_type'};
+		unless ($read_type =~ /^(pe|mp|hqmp)$/)	{
+			push @{$err_msg}, "\t$library is a $read_type library, only PE/(HQ)MP libraries can be used for REAPR evaluation!\n";
+		}
+		if ($type eq "short")	{
+			if ($read_type eq "mp" && !($global_opt->{'library'}->{$library}->{'nc-on'}))	{
+				push @{$err_msg}, "\t$library is a MP library and can only be used as a \"short\" library for REAPR evaluation after NextClip trimming!\n";
+			}
+		}
+	}
+	
+	return;
+}
+
+#############################
+# read global options from individual configuration files
 #############################
 sub read_conf_file	{
 	my @conf_file = @_;
@@ -928,11 +1019,14 @@ sub read_conf_file	{
 	# list all library and assembly protocol related settings
 	my %class = (
 		"qc" => "library",
+		"nc-on" => "library",
+		"nc-adapter" => "library",
+		"nc-minlen" => "library",
+		"tm-on" => "library",
 		"tm-trailing" => "library",
 		"tm-adapter" => "library",
 		"tm-minlen" => "library",
-		"nc-adapter" => "library",
-		"nc-minlen" => "library",
+		"ec-on" => "library",
 		"ec-tool" => "library",
 		"ec-kmer" => "library",
 		"simulator" => "library",
@@ -979,6 +1073,8 @@ sub read_conf_file	{
 		"eukaryote" => "quast",
 		"gage" => "quast",
 		"gene" => "quast",
+		"short" => "reapr",
+		"long" => "reapr",
 		"pirs" => "bin",
 		"art" => "bin",
 		"pbsim" => "bin",
@@ -994,23 +1090,27 @@ sub read_conf_file	{
 		"discovar" => "bin",
 		"masurca" => "bin",
 		"minia" => "bin",
+		"platanus" => "bin",
 		"soapdenovo2" => "bin",
 		"spades" => "bin",
 		"dipspades" => "bin",
 		"velvetg" => "bin",
 		"velveth" => "bin",
 		"quast" => "bin",
+		"reapr" => "bin",
 		"bank-transact" => "bin",
 		"blasr" => "bin",
 		"bwa" => "bin",
 		"pbdagcon" => "bin",
-		"picard" => "bin",
 		"samtools" => "bin",
+		"fastx" => "bin",
 		"genome" => 1,
 		"genome_size" => 1,
 		"threads" => 1,
 		"memory" => 1,
 		"out_dir" => 1,
+		"pricing_info" => 1,
+		"custom_weight" => 1,
 	);
 	
 	my @err_msg;
@@ -1131,38 +1231,29 @@ sub write_conf_file	{
 			push @conf, $library.".indel = $global_opt->{'pirs'}->{'indel'}\n";
 			push @conf, $library.".indel_profile = ".(defined($global_opt->{'pirs'}->{'indel_profile'}) ? $global_opt->{'pirs'}->{'indel_profile'} : " ")."\n";
 		}
+		
 		# write QC settings
-		push @conf, $library.".QC = $global_opt->{'library'}->{$library}->{'qc'}\n";
-		if ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(se|pe)$/)	{
-			if (defined($global_opt->{'library'}->{$library}->{'tm-trailing'})) { push @conf, $library.".tm-trailing = $global_opt->{'library'}->{$library}->{'tm-trailing'}\n"; }
-			if (defined($global_opt->{'library'}->{$library}->{'tm-adapter'})) { push @conf, $library.".tm-adapter = $global_opt->{'library'}->{$library}->{'tm-adapter'}\n"; }
-			if (defined($global_opt->{'library'}->{$library}->{'tm-minlen'})) { push @conf, $library.".tm-minlen = $global_opt->{'library'}->{$library}->{'tm-minlen'}\n"; }
-			if (defined($global_opt->{'library'}->{$library}->{'ec-tool'})) { 
-				if ($global_opt->{'library'}->{$library}->{'ec-tool'} eq "lighter")	{
-					push @conf, $library.".ec-tool = Lighter\n";
-				}	else	{
-					push @conf, $library.".ec-tool = Quake\n";
-				}
+		unless ($global_opt->{'library'}->{$library}->{'read_type'} eq 'clr')	{
+			push @conf, $library.".QC = $global_opt->{'library'}->{$library}->{'qc'}\n";
+			# write NextClip settings
+			if ($global_opt->{'library'}->{$library}->{'read_type'} eq 'mp')	{
+				push @conf, $library.".nc-on = ".(defined($global_opt->{'library'}->{$library}->{'nc-on'}) ? "$global_opt->{'library'}->{$library}->{'nc-on'}\n" : " \n");
+				push @conf, $library.".nc-adapter = ".(defined($global_opt->{'library'}->{$library}->{'nc-adapter'}) ? "$global_opt->{'library'}->{$library}->{'nc-adapter'}\n" : " \n");
+				push @conf, $library.".nc-minlen = ".(defined($global_opt->{'library'}->{$library}->{'nc-minlen'}) ? "$global_opt->{'library'}->{$library}->{'nc-minlen'}\n" : " \n");
 			}
-			if (defined($global_opt->{'library'}->{$library}->{'ec-kmer'})) { push @conf, $library.".ec-kmer = $global_opt->{'library'}->{$library}->{'ec-kmer'}\n"; }
-		}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq 'mp')	{
-			if (defined($global_opt->{'library'}->{$library}->{'tm-trailing'})) { push @conf, $library.".tm-trailing = $global_opt->{'library'}->{$library}->{'tm-trailing'}\n"; }
-			if (defined($global_opt->{'library'}->{$library}->{'tm-minlen'})) { push @conf, $library.".tm-minlen = $global_opt->{'library'}->{$library}->{'tm-minlen'}\n"; }
-			if (defined($global_opt->{'library'}->{$library}->{'nc-adapter'})) { push @conf, $library.".nc-adapter = $global_opt->{'library'}->{$library}->{'nc-adapter'}\n"; }
-			if (defined($global_opt->{'library'}->{$library}->{'nc-minlen'})) { push @conf, $library.".nc-minlen = $global_opt->{'library'}->{$library}->{'nc-minlen'}\n"; }
-		}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "hqmp")	{
-			if (defined($global_opt->{'library'}->{$library}->{'tm-trailing'})) { push @conf, $library.".tm-trailing = $global_opt->{'library'}->{$library}->{'tm-trailing'}\n"; }
-			if (defined($global_opt->{'library'}->{$library}->{'tm-minlen'})) { push @conf, $library.".tm-minlen = $global_opt->{'library'}->{$library}->{'tm-minlen'}\n"; }
-			if (defined($global_opt->{'library'}->{$library}->{'nc-adapter'})) { push @conf, $library.".nc-adapter = $global_opt->{'library'}->{$library}->{'nc-adapter'}\n"; }
-			if (defined($global_opt->{'library'}->{$library}->{'nc-minlen'})) { push @conf, $library.".nc-minlen = $global_opt->{'library'}->{$library}->{'nc-minlen'}\n"; }
+			# write Trimmomatic settings
+			push @conf, $library.".tm-on = ".(defined($global_opt->{'library'}->{$library}->{'tm-on'}) ? "$global_opt->{'library'}->{$library}->{'tm-on'}\n" : " \n");
+			push @conf, $library.".tm-trailing = ".(defined($global_opt->{'library'}->{$library}->{'tm-trailing'}) ? "$global_opt->{'library'}->{$library}->{'tm-trailing'}\n" : " \n");
+			push @conf, $library.".tm-adapter = ".(defined($global_opt->{'library'}->{$library}->{'tm-adapter'}) ? "$global_opt->{'library'}->{$library}->{'tm-adapter'}\n" : " \n");
+			push @conf, $library.".tm-minlen = ".(defined($global_opt->{'library'}->{$library}->{'tm-minlen'}) ? "$global_opt->{'library'}->{$library}->{'tm-minlen'}\n" : " \n");
+			# write error correction settings
+			push @conf, $library.".ec-on = ".(defined($global_opt->{'library'}->{$library}->{'ec-on'}) ? "$global_opt->{'library'}->{$library}->{'ec-on'}\n" : " \n");
 			if (defined($global_opt->{'library'}->{$library}->{'ec-tool'})) { 
-				if ($global_opt->{'library'}->{$library}->{'ec-tool'} eq "lighter")	{
-					push @conf, $library.".ec-tool = Lighter\n";
-				}	else	{
-					push @conf, $library.".ec-tool = Quake\n";
-				}
+				push @conf, $library.".ec-tool = ".(($global_opt->{'library'}->{$library}->{'ec-tool'} eq "lighter") ? "Lighter\n" : "Quake\n");
+			}	else	{
+				push @conf, $library.".ec-tool = \n";
 			}
-			if (defined($global_opt->{'library'}->{$library}->{'ec-kmer'})) { push @conf, $library.".ec-kmer = $global_opt->{'library'}->{$library}->{'ec-kmer'}\n"; }
+			push @conf, $library.".ec-kmer = ".(defined($global_opt->{'library'}->{$library}->{'ec-kmer'}) ? "$global_opt->{'library'}->{$library}->{'ec-kmer'}\n" : " \n");
 		}
 	}
 	
@@ -1198,6 +1289,9 @@ sub write_conf_file	{
 			push @conf, $protocol.".assembler = Minia\n";
 			push @conf, $protocol.".kmer = $global_opt->{'protocol'}->{$protocol}->{'kmer'}\n";
 			push @conf, $protocol.".min-abundance = $global_opt->{'protocol'}->{$protocol}->{'min-abundance'}\n";
+		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "planatus")	{
+			push @conf, $protocol.".assembler = Planatus\n";
+			push @conf, $protocol.".kmer = $global_opt->{'protocol'}->{$protocol}->{'kmer'}\n";
 		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "sga")	{
 			push @conf, $protocol.".assembler = SGA\n";
 			push @conf, $protocol.".kmer = $global_opt->{'protocol'}->{$protocol}->{'kmer'}\n";
@@ -1259,6 +1353,8 @@ sub write_conf_file	{
 	push @conf, "bin.DISCOVAR = ".(defined($global_opt->{'bin'}->{'discovar'}) ? $global_opt->{'bin'}->{'discovar'} : " ")."\n";
 	push @conf, "bin.MaSuRCA = ".(defined($global_opt->{'bin'}->{'masurca'}) ? $global_opt->{'bin'}->{'masurca'} : " ")."\n";
 	push @conf, "bin.Minia = ".(defined($global_opt->{'bin'}->{'minia'}) ? $global_opt->{'bin'}->{'minia'} : " ")."\n";
+	push @conf, "bin.Planatus = ".(defined($global_opt->{'bin'}->{'planatus'}) ? $global_opt->{'bin'}->{'planatus'} : " ")."\n";
+	push @conf, "bin.SGA = ".(defined($global_opt->{'bin'}->{'sga'}) ? $global_opt->{'bin'}->{'sga'} : " ")."\n";
 	push @conf, "bin.SOAPdenovo2 = ".(defined($global_opt->{'bin'}->{'soapdenovo2'}) ? $global_opt->{'bin'}->{'soapdenovo2'} : " ")."\n";
 	push @conf, "bin.SPAdes = ".(defined($global_opt->{'bin'}->{'spades'}) ? $global_opt->{'bin'}->{'spades'} : " ")."\n";
 	push @conf, "bin.dipSPAdes = ".(defined($global_opt->{'bin'}->{'dipspades'}) ? $global_opt->{'bin'}->{'dipspades'} : " ")."\n";
@@ -1269,9 +1365,13 @@ sub write_conf_file	{
 	push @conf, "bin.BLASR = ".(defined($global_opt->{'bin'}->{'blasr'}) ? $global_opt->{'bin'}->{'blasr'} : " ")."\n";
 	push @conf, "bin.BWA = ".(defined($global_opt->{'bin'}->{'bwa'}) ? $global_opt->{'bin'}->{'bwa'} : " ")."\n";
 	push @conf, "bin.PDBAGCON = ".(defined($global_opt->{'bin'}->{'pbdagcon'}) ? $global_opt->{'bin'}->{'pbdagcon'} : " ")."\n";
-	# push @conf, "bin.Picard = ".(defined($global_opt->{'bin'}->{'picard'}) ? $global_opt->{'bin'}->{'picard'} : " ")."\n";
 	push @conf, "bin.SAMtools = ".(defined($global_opt->{'bin'}->{'samtools'}) ? $global_opt->{'bin'}->{'samtools'} : " ")."\n";
-
+	push @conf, "bin.FASTX = ".(defined($global_opt->{'bin'}->{'fastx'}) ? $global_opt->{'bin'}->{'fastx'} : " ")."\n";
+	# Paths to other necessary files
+	push @conf, "pricing_info = ".(defined($global_opt->{'pricing_info'}) ? $global_opt->{'pricing_info'} : " ")."\n";
+	push @conf, "custom_weight = ".(defined($global_opt->{'custom_weight'}) ? $global_opt->{'custom_weight'} : " ")."\n";
+	
+	
 	open MISC_CONF, "> $cwd/misc.conf" or die "Can't write to misc.conf!";
 	print MISC_CONF @conf;
 	close (MISC_CONF);

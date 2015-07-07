@@ -15,7 +15,7 @@ use Utilities;
 
 my $usage = "
 iWGS: in silico Whole Genome Sequencer
-Version 0.8
+Version 0.95
 
 Usage: iWGS [options]
 
@@ -25,7 +25,6 @@ Basic options:
 -t | --threads	  <int>		number of CPUs to use (default: 1)
 -m | --memory	  <int>		number of GBs of memeory to use (default: 8)
 -o | --out_dir	  <string>	the directory to store all outputs, will be created if not already exist (default \"./\")
--p | --price	  <string>	provide the pricing information to calculate the cost of each assembly protocol
 -c | --cleanup	  		whether to clean up after all steps are finished (default: 0 [no])
 -r | --overwrite  		whether to overwrite if a library already exists (default: 0 [no])
 -v | --verify	  		verify the settings and quit
@@ -53,7 +52,6 @@ unless (@ARGV)	{
 #############################
 
 my $global_ctrl_file;
-my $price;
 my $cleanup = 0;
 my $overwrite = 0;
 my $verify = 0;
@@ -68,7 +66,6 @@ my %opt;
 	'threads|t=i' => \$opt{'threads'},
 	'memory|m=i' => \$opt{'memory'},
 	'out_dir|o=s' => \$opt{'out_dir'},
-	'price|p=s' => \$price,
 	'cleanup|c' => \$cleanup,
 	'overwrite|r' => \$overwrite,
 	'verify|v' => \$verify,
@@ -95,14 +92,6 @@ if ($mode ==1 || $mode == 2)	{
 	}
 	# validate global options
 	&Ctrl::check_global_opt(\%global_opt, $real);
-	# estimate cost if price information is provided
-	if (defined($price))	{
-		if (-e $price)	{
-			&Utilities::calculate_price(\%global_opt, $price);
-		}	else	{
-			die "ERROR: The price information file does not exist!\n";
-		}
-	}
 	# if running in Mode 2, generate configuration files and quit
 	if ($mode == 2)	{
 		&Ctrl::write_conf_file(\%global_opt);
@@ -116,13 +105,6 @@ if ($mode ==1 || $mode == 2)	{
 	# if running with Mode 3, set lib, prot, and misc options using the corresponding configuration files
 	%global_opt = &Ctrl::read_conf_file(@conf);
 	&Ctrl::check_global_opt(\%global_opt, $real);
-	if (defined($price))	{
-		if (-e $price)	{
-			&Utilities::calculate_price(\%global_opt, $price);
-		}	else	{
-			die "ERROR: The price information file does not exist!\n";
-		}
-	}
 }	else	{
 	die "Invalid value of \"Mode\", should be one of following: \"1\", \"2\", and \"3\".\n";
 }
@@ -214,7 +196,7 @@ if (@qc)	{
 		mkdir("$global_opt{'out_dir'}/preprocessed");
 	}
 
-	foreach my $library (@qc)       {
+	foreach my $library (@qc)	{
 		unless (-d "$global_opt{'out_dir'}/preprocessed/$library")	{
 			mkdir("$global_opt{'out_dir'}/preprocessed/$library");
 		}
@@ -249,7 +231,7 @@ foreach my $protocol (sort keys %{$global_opt{'protocol'}})	{
 
 
 #############################
-# QUAST evaluation
+# assembly evaluation
 #############################
 
 print "##############################\n# iWGS Stage 4: QUAST evaluation\t".localtime()."\n##############################\n\n";
@@ -262,10 +244,22 @@ if (-d "$global_opt{'out_dir'}/evaluation")	{
 mkdir("$global_opt{'out_dir'}/evaluation");
 chdir("$global_opt{'out_dir'}/evaluation");
 
-# perform QUAST evaluation on assembled contigs
-&Assembly::quast("contigs", \%global_opt);
-# perform QUAST evaluation on assembled scaffolds
-&Assembly::quast("scaffolds", \%global_opt);
+if (defined($global_opt{'reapr'}->{'long'}))	{
+	# prepare libraries for REAPR evaluation
+	&Assembly::reapr_prep(\%global_opt);
+	# perform REAPR evaluation on assembled contigs
+	&Assembly::reapr("contigs", \%global_opt);
+	# perform REAPR evaluation on assembled scaffolds
+	&Assembly::reapr("scaffolds", \%global_opt);
+}	else	{
+	# perform QUAST evaluation on assembled contigs
+	&Assembly::quast("contigs", \%global_opt);
+	# perform QUAST evaluation on assembled scaffolds
+	&Assembly::quast("scaffolds", \%global_opt);
+}
+
+# estimate cost
+&Utilities::calculate_price(\%global_opt);
 
 
 #############################

@@ -38,6 +38,8 @@ sub assemble	{
 		&masurca($protocol, $global_opt);
 	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "minia")	{
 		&minia($protocol, $global_opt);
+	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "platanus")	{
+		&platanus($protocol, $global_opt);
 	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "sga")	{
 		&sga($protocol, $global_opt);
 	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "soapdenovo2")	{
@@ -64,10 +66,10 @@ sub abyss	{
 	print "Starts the assembly protocol $protocol:\t".localtime()."\n";
 	
 	# set k-mer
-	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? [ ($global_opt->{'protocol'}->{$protocol}->{'kmer'}, 0) ] : &kmergenie($protocol, $global_opt, 0, 0, 1, 0, 0, 0);
+	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? $global_opt->{'protocol'}->{$protocol}->{'kmer'} : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 0, 0);
 
 	# set command
-	my $cmd = "$global_opt->{'bin'}->{'abyss'} np=$global_opt->{'threads'} k=$kmer->[0] name=$protocol";
+	my $cmd = "$global_opt->{'bin'}->{'abyss'} np=$global_opt->{'threads'} k=$kmer name=$protocol";
 	if ($global_opt->{'protocol'}->{$protocol}->{'option'} =~ /\w/)	{
 		$cmd .= " $global_opt->{'protocol'}->{$protocol}->{'option'}";
 	}
@@ -80,29 +82,33 @@ sub abyss	{
 		$cmd .= " se=\'".(join " ", sort values %{$data{'se'}})."\'";
 	}
 	
-	# PE libraries
+	# PE and HQMP libraries
+	my @pe;
 	if (defined($data{'pe'}))	{
-		my $lib = join " ", sort keys %{$data{'pe'}};
+		push @pe, sort keys %{$data{'pe'}};
+	}
+	if (defined($data{'hqmp'}))	{
+		push @pe, sort keys %{$data{'hqmp'}};
+	}
+	if (@pe)	{
+		my $lib = join " ", @pe;
 		$cmd .= " lib=\'$lib\'";
-		foreach my $library (sort keys %{$data{'pe'}})	{
-			$cmd .= " $library=\'$data{'pe'}->{$library}->[0] $data{'pe'}->{$library}->[1]\'";
+		foreach my $library (@pe)	{
+			my $read_type = $global_opt->{'library'}->{$library}->{'read_type'};
+			$cmd .= " $library=\'$data{$read_type}->{$library}->[0] $data{$read_type}->{$library}->[1]\'";
 		}
 	}
 	
-	# MP and HQMP libraries
+	# MP libraries
 	my @mp;
 	if (defined($data{'mp'}))	{
 		push @mp, sort keys %{$data{'mp'}};
-	}
-	if (defined($data{'hqmp'}))	{
-		push @mp, sort keys %{$data{'hqmp'}};
 	}
 	if (@mp)	{
 		my $mp = join " ", @mp;
 		$cmd .= " mp=\'$mp\'";
 		foreach my $library (@mp)	{
-			my $read_type = $global_opt->{'library'}->{$library}->{'read_type'};
-			$cmd .= " $library=\'$data{$read_type}->{$library}->[0] $data{$read_type}->{$library}->[1]\'";
+			$cmd .= " $library=\'$data{'mp'}->{$library}->[0] $data{'mp'}->{$library}->[1]\'";
 		}
 	}
 
@@ -147,7 +153,9 @@ sub allpaths	{
 			print LIBS "$library,iWGS,unnamed,long,0,,,,,,,\n";
 		}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "pe")	{
 			print LIBS "$library,iWGS,unnamed,fragment,1,$global_opt->{'library'}->{$library}->{'frag_mean'},$global_opt->{'library'}->{$library}->{'frag_sd'},,,inward,,\n";
-		}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(mp|hqmp)$/)	{
+		}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "hqmp")	{
+			print LIBS "$library,iWGS,unnamed,jumping,1,$global_opt->{'library'}->{$library}->{'frag_mean'},$global_opt->{'library'}->{$library}->{'frag_sd'},,,inward,,\n";
+		}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "mp")	{
 			print LIBS "$library,iWGS,unnamed,jumping,1,,,$global_opt->{'library'}->{$library}->{'frag_mean'},$global_opt->{'library'}->{$library}->{'frag_sd'},outward,,\n";
 		}
 	}
@@ -201,21 +209,18 @@ sub ca	{
 		}
 	}
 	
-	# PE libraries
+	# PE and HQMP libraries
+	my @pe;
 	if (defined($data{'pe'}))	{
-		foreach my $library (sort keys %{$data{'pe'}})	{
+		push @pe, sort keys %{$data{'pe'}};
+	}
+	if (defined($data{'hqmp'}))	{
+		push @pe, sort keys %{$data{'hqmp'}};
+	}
+	if (@pe)	{
+		foreach my $library (@pe)	{
 			my $technology = ($global_opt->{'library'}->{$library}->{'read_length'} > 160) ? "illumina-long" : "illumina";
 			$cmd = "$fastqToCA_bin -libraryname $library -technology $technology -insertsize $global_opt->{'library'}->{$library}->{'frag_mean'} $global_opt->{'library'}->{$library}->{'frag_sd'} -mates $data{'pe'}->{$library}->[0],$data{'pe'}->{$library}->[1] > $library.frg";
-			&Utilities::execute_cmd2($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
-			push @frg, "$global_opt->{'out_dir'}/protocols/$protocol/$library.frg";
-		}
-	}
-	
-	# HQMP libraries
-	if (defined($data{'hqmp'}))	{
-		foreach my $library (sort keys %{$data{'hqmp'}})	{
-			my $technology = ($global_opt->{'library'}->{$library}->{'read_length'} > 160) ? "illumina-long" : "illumina";
-			$cmd = "$fastqToCA_bin -libraryname $library -technology $technology -outtie -insertsize $global_opt->{'library'}->{$library}->{'frag_mean'} $global_opt->{'library'}->{$library}->{'frag_sd'} -mates $data{'pe'}->{$library}->[0],$data{'pe'}->{$library}->[1] > $library.frg";
 			&Utilities::execute_cmd2($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
 			push @frg, "$global_opt->{'out_dir'}/protocols/$protocol/$library.frg";
 		}
@@ -234,21 +239,11 @@ sub ca	{
 			 system("ln $data{'clr'}->{$clr[0]} pacbio_clr.fq");
 		}
 	
-		# DEPRECATED CODE: the option "-sensitive" was used instead from v8.3
-		# create the "pacbio.spec" filfe
-		# if ($global_opt->{'protocol'}->{$protocol}->{'sensitive'})	{
-		# 	open SPEC, "> pacbio.spec" or die "Can't write to pacbio.spec!\n";
-		# 	print SPEC "mhap=-k 16 --num-hashes 1256 --num-min-matches 3 --threshold 0.04\nmerSize=16\n";
-		# 	close (SPEC);
-		# }	else	{
-		# 	system("touch pacbio.spec");
-		# }
-		
 		# create the "pacbio.spec" filfe
 		system("touch pacbio.spec");
 	
-		$cmd = "$global_opt->{'bin'}->{'pbcr'} pbcns=".$global_opt->{'protocol'}->{$protocol}->{'pbcns'};
-		if ($global_opt->{'protocol'}->{$protocol}->{'sensitive'})      {
+		$cmd = "$global_opt->{'bin'}->{'pbcr'} -threads $global_opt->{'threads'} pbcns=".$global_opt->{'protocol'}->{$protocol}->{'pbcns'};
+		if ($global_opt->{'protocol'}->{$protocol}->{'sensitive'}) 	{
 			$cmd .= " -sensitive";
 		}
 		if (@frg)	{
@@ -284,6 +279,9 @@ sub ca	{
 	if (-e "$protocol/9-terminator/asm.ctg.fasta")	{
 		system("ln $protocol/9-terminator/asm.ctg.fasta $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
 		system("ln $protocol/9-terminator/asm.scf.fasta $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
+		#system("ln $protocol/9-terminator/asm.utg.fasta $global_opt->{'out_dir'}/assemblies/$protocol.utg.fa");
+		#system("ln $protocol/9-terminator/asm.deg.fasta $global_opt->{'out_dir'}/assemblies/$protocol.deg.fa");
+		#system("ln $protocol/9-terminator/asm.singleton.fasta $global_opt->{'out_dir'}/assemblies/$protocol.singleton.fa");
 		print "The assembly protocol $protocol finished successfully!\n\n";
 	}	else	{
 		print "WARNING: No assembly found, $protocol failed!\n\n";
@@ -296,7 +294,7 @@ sub discovar	{
 	(my $protocol, my $global_opt) = @_;
 
 	print "Starts the assembly protocol $protocol:\t".localtime()."\n";
-
+	
 	# DEPRECATED CODE: earlier version of DISCOVAR requires BAM file as input, and only supports a single input library
 	# convert FastQ to BAM
 	# my $library = ${$global_opt->{'protocol'}->{$protocol}->{'library'}}[0];
@@ -305,7 +303,7 @@ sub discovar	{
 	# run DISCOVAR
 	# $cmd = "$global_opt->{'bin'}->{'discovar'} READS=$library.bam NUM_THREADS=$global_opt->{'threads'} OUT_DIR=.";
 	# &Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
-
+	
 	# run DISCOVAR
 	my $cmd = "$global_opt->{'bin'}->{'discovar'} NUM_THREADS=$global_opt->{'threads'} OUT_DIR=. MAX_MEM_GB=$global_opt->{'memory'} READS=";
 	if ($#{$global_opt->{'protocol'}->{$protocol}->{'library'}} == 0)	{
@@ -341,12 +339,30 @@ sub masurca	{
 	open CONF, "> config" or die "Can't write to MaSuRCA configuration file!\n";
 	print CONF "DATA\n";
 
-	# set libraries
-	my %data = &data($protocol, $global_opt, 0, 1, 1, 1);
-	
 	# set suffix for each library
 	my @name = split //, "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	
+	# set libraries
+	my %data;
+	foreach my $library (@{$global_opt->{'protocol'}->{$protocol}->{'library'}})	{
+		if ($global_opt->{'library'}->{$library}->{'read_type'} eq "se")	{
+			$data{'se'}->{$library} = "$global_opt->{'out_dir'}/libraries/$library/$library.fq";
+		}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "pe")	{
+			$data{'pe'}->{$library} = [ ("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq") ];
+		}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "mp")	{
+			$data{'mp'}->{$library} = [ ("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq") ];
+		}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "hqmp")	{
+			if (-e "$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq" && -e "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq")	{
+				$data{'pe'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq") ];
+				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq")	{
+					$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq";
+				}
+			}	else	{
+				$data{'pe'}->{$library} = [ ("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq") ];	
+			}
+		}
+	}
+
 	# SE libraries
 	if (defined($data{'se'}))	{
 		foreach my $library (sort keys %{$data{'se'}})	{
@@ -355,7 +371,7 @@ sub masurca	{
 		}
 	}
 	
-	# PE libraries
+	# PE and HQMP libraries
 	if (defined($data{'pe'}))	{
 		foreach my $library (sort keys %{$data{'pe'}})	{
 			print CONF "PE=p$name[0] $global_opt->{'library'}->{$library}->{'frag_mean'} $global_opt->{'library'}->{$library}->{'frag_sd'} $data{'pe'}->{$library}->[0] $data{'pe'}->{$library}->[1]\n";
@@ -363,16 +379,9 @@ sub masurca	{
 		}
 	}
 	
-	# MP/HQMP libraries
-	my @mp;
+	# MP libraries
 	if (defined($data{'mp'}))	{
-		push @mp, sort keys %{$data{'mp'}};
-	}
-	if (defined($data{'hqmp'}))	{
-		push @mp, sort keys %{$data{'hqmp'}};
-	}
-	if (@mp)	{
-		foreach my $library (@mp)	{
+		foreach my $library (sort keys %{$data{'mp'}})	{
 			my $read_type = $global_opt->{'library'}->{$library}->{'read_type'};
 			print CONF "JUMP=j$name[0] $global_opt->{'library'}->{$library}->{'frag_mean'} $global_opt->{'library'}->{$library}->{'frag_sd'} $data{$read_type}->{$library}->[0] $data{$read_type}->{$library}->[1]\n";
 			shift @name;
@@ -430,7 +439,7 @@ sub minia	{
 		}
 	}
 	
-	# PE/HQMP libraries
+	# PE and HQMP libraries
 	my @pe;
 	if (defined($data{'pe'}))	{
 		push @pe, sort keys %{$data{'pe'}};
@@ -446,8 +455,8 @@ sub minia	{
 	}
 	
 	# set k-mer and min-abundance
-	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? [ ($global_opt->{'protocol'}->{$protocol}->{'kmer'}, 0) ] : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 0, 1);
-	$kmer->[1] = ($kmer->[1] > 1) ? $kmer->[1] : 2;
+	my @kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? $global_opt->{'protocol'}->{$protocol}->{'kmer'} : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 0, 1);
+	$kmer[0] = ($kmer[0] > 1) ? $kmer[0] : 2;
 
 	# DEPRECATED CODE: Minia v2.0.1 does not require this parameter any more
 	# estimate genome size
@@ -456,7 +465,7 @@ sub minia	{
 	# my $cmd = "$global_opt->{'bin'}->{'minia'} $protocol.fq $kmer->[0] $kmer->[1] $genomeSize $protocol";
 	
 	# set command
-	my $cmd = "$global_opt->{'bin'}->{'minia'} -in $protocol.fq -kmer-size $kmer->[0] -abundance-min $kmer->[1] -out $protocol";
+	my $cmd = "$global_opt->{'bin'}->{'minia'} -in $protocol.fq -kmer-size $kmer[1] -abundance-min $kmer[0] -out $protocol";
 
 	# run Minia
 	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
@@ -465,6 +474,78 @@ sub minia	{
 	if (-e "$protocol.contigs.fa")	{
 		system("cp $protocol.contigs.fa $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
 		system("cp $protocol.contigs.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
+		print "The assembly protocol $protocol finished successfully!\n\n";
+	}	else	{
+		print "WARNING: No assembly found, $protocol failed!\n\n";
+	}
+
+	return;
+}
+
+sub platanus	{
+	(my $protocol, my $global_opt) = @_;
+
+	print "Starts the assembly protocol $protocol:\t".localtime()."\n";
+	
+	# set libraries
+	my %data = &data($protocol, $global_opt, 0, 1, 1, 1);
+	
+	# collect all libraries for assembly, and PE/MP/HQMP libraries for scaffolding
+	my $assembly_libs = "-f"; my $scaffolding_libs;
+	if (defined($data{'se'}))	{
+		$assembly_libs .= " ".(join " ", sort values %{$data{'se'}});
+	}
+	
+	# PE nad HQMP libraries
+	my @pe;
+	if (defined($data{'pe'}))	{
+		push @pe, sort keys %{$data{'pe'}};
+	}
+	if (defined($data{'hqmp'}))	{
+		push @pe, sort keys %{$data{'hqmp'}};
+	}
+	my $pe_num = 1;
+	if (@pe)	{
+		foreach my $library (@pe)	{
+			my $read_type = $global_opt->{'library'}->{$library}->{'read_type'};
+			$assembly_libs .= " $data{$read_type}->{$library}->[0] $data{$read_type}->{$library}->[1]";
+			$scaffolding_libs = " -IP$pe_num $data{$read_type}->{$library}->[0] $data{$read_type}->{$library}->[1]";
+			$pe_num++;
+		}
+	}
+	
+	# MP libraries
+	my $mp_num = 1;
+	if (defined($data{'mp'}))	{
+		foreach my $library (sort keys %{$data{'mp'}})	{
+			$scaffolding_libs = " -OP$mp_num $data{'mp'}->{$library}->[0] $data{'mp'}->{$library}->[1]";
+			$mp_num++;
+		}
+	}
+
+	# Platanus assembly consists of three step: assemble, scaffold, and gap close
+	# 1. contig assembly
+	my $cmd = "$global_opt->{'bin'}->{'platanus'} assemble -t $global_opt->{'threads'} -m $global_opt->{'memory'} -o $protocol";
+	if ($global_opt->{'protocol'}->{$protocol}->{'kmer'})	{
+		$cmd .= " -k $global_opt->{'protocol'}->{$protocol}->{'kmer'}";
+	}
+	if ($global_opt->{'protocol'}->{$protocol}->{'option'} =~ /\w/)	{
+		$cmd .= " $global_opt->{'protocol'}->{$protocol}->{'option'}";
+	}
+	$cmd .= " $assembly_libs";
+	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
+
+	# 2. scaffolding
+	$cmd = "$global_opt->{'bin'}->{'platanus'} scaffold -t $global_opt->{'threads'} -o $protocol -c $protocol\_contig.fa -b $protocol\_contigBubble.fa $scaffolding_libs";
+	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
+
+	# 3. gap close
+	$cmd = "$global_opt->{'bin'}->{'platanus'} gap_close -t $global_opt->{'threads'} -o $protocol -c $protocol\_scaffold.fa $scaffolding_libs";
+
+	# copy assembly files
+	if (-e "$protocol\-contigs.fa")	{
+		system("cp $protocol\_contig.fa $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
+		system("cp $protocol\_gapClosed.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
 		print "The assembly protocol $protocol finished successfully!\n\n";
 	}	else	{
 		print "WARNING: No assembly found, $protocol failed!\n\n";
@@ -508,7 +589,7 @@ sub sga	{
 			}	else	{
 				system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq >> sga_tmp/$protocol.fq");
 				push @{$scaf_lib{$library}}, ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq");
-				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq" > 0)	{
+				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq")	{
 					system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq >> sga_tmp/$protocol.fq");
 				}
 			}
@@ -521,8 +602,6 @@ sub sga	{
 				push @{$scaf_lib{$library}}, ("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq");
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
 				push @{$scaf_lib{$library}}, ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq");
-			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "nextclip")	{
-				push @{$scaf_lib{$library}}, ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq");
 			}
 		}
 	}
@@ -530,17 +609,17 @@ sub sga	{
 	if (defined($lib{'hqmp'}))	{
 		foreach my $library (@{$lib{'hqmp'}})	{
 			my $qc_status;
-			if ($global_opt->{'library'}->{$library}->{'qc'} || $global_opt->{'library'}->{$library}->{'qc'} eq "original")	{
+			if ($global_opt->{'library'}->{$library}->{'qc'} eq "0" || $global_opt->{'library'}->{$library}->{'qc'} eq "original")	{
 				$qc_status = "original";
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
 				$qc_status = "trimmomatic";
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "nextclip")	{
 				$qc_status = "nextclip";
 			}	else	{
-				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq" && -s "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq")	{
-					$qc_status = "nextclip";
-				}	elsif (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq" && -s "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq")	{
+				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq" && -s "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq")	{
 					$qc_status = "trimmomatic";
+				}	elsif (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq" && -s "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq")	{
+					$qc_status = "nextclip";
 				}	else	{
 					$qc_status = "original";
 				}
@@ -549,17 +628,17 @@ sub sga	{
 			if ($qc_status eq "original")	{
 				system("cat $global_opt->{'out_dir'}/libraries/$library/$library\_1.fq $global_opt->{'out_dir'}/libraries/$library/$library\_2.fq >> sga_tmp/$protocol.fq");
 				push @{$scaf_lib{$library}}, ("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq");
-			}	elsif ($qc_status eq "trimmomatic")	{
-				system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq >> sga_tmp/$protocol.fq");
-				push @{$scaf_lib{$library}}, ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq");
-				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq")	{
-					system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq >> sga_tmp/$protocol.fq");
-				}
 			}	elsif ($qc_status eq "nextclip")	{
 				system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq >> sga_tmp/$protocol.fq");
 				push @{$scaf_lib{$library}}, ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq");
 				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq")	{
 					system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq >> sga_tmp/$protocol.fq");
+				}
+			}	elsif ($qc_status eq "trimmomatic")	{
+				system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq >> sga_tmp/$protocol.fq");
+				push @{$scaf_lib{$library}}, ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq");
+				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq")	{
+					system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq >> sga_tmp/$protocol.fq");
 				}
 			}	
 		}
@@ -612,7 +691,7 @@ sub sga	{
 		&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
 
 		# 9. bwa mapping
-		print "\tstep 10: BWA mapping of PE/MP libraries\n";
+		print "\tstep 10: BWA mapping of PE/MP/HQMP libraries\n";
 		my @max_cov_lib = (0, 0);
 		foreach my $library (sort keys %scaf_lib)	{
 			if ($global_opt->{'library'}->{$library}->{'depth'} > $max_cov_lib[0])	{
@@ -645,6 +724,8 @@ sub sga	{
 		foreach my $library (sort keys %scaf_lib)	{
 			if ($global_opt->{'library'}->{$library}->{'read_type'} eq "pe")	{
 				$cmd .= " --pe $library.de";
+			}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "hqmp")	{
+				$cmd .= " --pe $library.de";
 			}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} eq "mp")	{
 				$cmd .= " --mate $library.de";
 			}
@@ -654,7 +735,7 @@ sub sga	{
 
 		# 12. generate fasta file
 		print "\tstep 13: generate scaffolds.fa\n";
-		$cmd = "$global_opt->{'bin'}->{'sga'} scaffold2fasta --write-unplaced -m 200  -o $protocol\-scaffolds.fa -a $protocol\-graph.asqg.gz -o $protocol\-scaffolds.fa $protocol\-scaf";
+		$cmd = "$global_opt->{'bin'}->{'sga'} scaffold2fasta --write-unplaced -m 200 -o $protocol\-scaffolds.fa -a $protocol\-graph.asqg.gz -o $protocol\-scaffolds.fa $protocol\-scaf";
 		&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
 	}	else	{
 		print "\tWARNING: the tools \"BWA\" and \"SAMtools\" are not available, will not perform scaffolding.\n";
@@ -680,7 +761,7 @@ sub soapdenovo2	{
 	# set libraries
 	my %data = &data($protocol, $global_opt, 0, 1, 1, 1);
 	my $max_rd_len = 0;
-	foreach my $library (@{$global_opt->{'protocol'}->{$protocol}->{'library'}})    {
+	foreach my $library (@{$global_opt->{'protocol'}->{$protocol}->{'library'}})	{
 		$max_rd_len = ($max_rd_len >= $global_opt->{'library'}->{$library}->{'read_length'}) ? $max_rd_len : $global_opt->{'library'}->{$library}->{'read_length'};
 	}
 	
@@ -713,13 +794,12 @@ sub soapdenovo2	{
 		}
 	}
 	
-	my $rank = 2;
 	# HQMP libraries
 	if (defined($data{'hqmp'}))	{
 		foreach my $library (sort keys %{$data{'hqmp'}})	{
 			push @conf, "[LIB]\n";
 			push @conf, "avg_ins=$global_opt->{'library'}->{$library}->{'frag_mean'}\n";
-			push @conf, "reverse_seq=1\n";
+			push @conf, "reverse_seq=0\n";
 			push @conf, "asm_flags=3\n";
 			push @conf, "rank=2\n";
 			push @conf, "pair_num_cutoff=5\n";
@@ -727,7 +807,6 @@ sub soapdenovo2	{
 			push @conf, "q1=$data{'hqmp'}->{$library}->[0]\n";
 			push @conf, "q2=$data{'hqmp'}->{$library}->[1]\n";
 		}
-		$rank++;
 	}
 
 	# MP libraries
@@ -737,7 +816,7 @@ sub soapdenovo2	{
 			push @conf, "avg_ins=$global_opt->{'library'}->{$library}->{'frag_mean'}\n";
 			push @conf, "reverse_seq=1\n";
 			push @conf, "asm_flags=2\n";
-			push @conf, "rank=$rank\n";
+			push @conf, "rank=3\n";
 			push @conf, "pair_num_cutoff=5\n";
 			push @conf, "map_len=35\n";
 			push @conf, "q1=$data{'mp'}->{$library}->[0]\n";
@@ -750,10 +829,10 @@ sub soapdenovo2	{
 	close (CONF);
 
 	# set k-mer
-	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? [ ($global_opt->{'protocol'}->{$protocol}->{'kmer'}, 0) ] : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 0, 0);
+	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? $global_opt->{'protocol'}->{$protocol}->{'kmer'} : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 0, 0);
 
 	# set command
-	my $cmd = "$global_opt->{'bin'}->{'soapdenovo2'} all -s config -k $kmer->[0] -p $global_opt->{'threads'} -o $protocol";
+	my $cmd = "$global_opt->{'bin'}->{'soapdenovo2'} all -s config -k $kmer -p $global_opt->{'threads'} -o $protocol";
 	if (defined($global_opt->{'protocol'}->{$protocol}->{'option'}))	{
 		$cmd .= " $global_opt->{'protocol'}->{$protocol}->{'option'}";
 	}
@@ -781,7 +860,7 @@ sub spades	{
 	# set libraries
 	my %data = &data($protocol, $global_opt, 0, 1, 1, 1);
 	my $max_rd_len = 0;
-	foreach my $library (@{$global_opt->{'protocol'}->{$protocol}->{'library'}})    {
+	foreach my $library (@{$global_opt->{'protocol'}->{$protocol}->{'library'}})	{
 		next unless (exists($global_opt->{'library'}->{$library}->{'read_length'}));
 		$max_rd_len = ($max_rd_len >= $global_opt->{'library'}->{$library}->{'read_length'}) ? $max_rd_len : $global_opt->{'library'}->{$library}->{'read_length'};
 	}
@@ -811,18 +890,18 @@ sub spades	{
 	}
 
 	# PE, MP, and HQMP libraries
-	my @pe;
+	my @libs;
 	if (defined($data{'pe'}))	{
-		push @pe, sort keys %{$data{'pe'}};
+		push @libs, sort keys %{$data{'pe'}};
 	}
 	if (defined($data{'mp'}))	{
-		push @pe, sort keys %{$data{'mp'}};
+		push @libs, sort keys %{$data{'mp'}};
 	}
 	if (defined($data{'hqmp'}))	{
-		push @pe, sort keys %{$data{'hqmp'}};
+		push @libs, sort keys %{$data{'hqmp'}};
 	}
-	if (@pe)	{
-		foreach my $library (@pe)	{
+	if (@libs)	{
+		foreach my $library (@libs)	{
 			my $read_type = $global_opt->{'library'}->{$library}->{'read_type'};
 			$libs .= " --$read_type".$lib_num{$read_type}."-1 $data{$read_type}->{$library}->[0] --$read_type".$lib_num{$read_type}."-2 $data{$read_type}->{$library}->[1]";
 			$lib_num{$read_type}++;
@@ -845,8 +924,8 @@ sub spades	{
 			$kmer{'127'} = 1;
 		}
 	}
-	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? [ ($global_opt->{'protocol'}->{$protocol}->{'kmer'}, 0) ] : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 0, 0);
-	$kmer{$kmer->[0]} = 1;
+	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? $global_opt->{'protocol'}->{$protocol}->{'kmer'} : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 0, 0);
+	$kmer{$kmer} = 1;
 	$kmer = join ",", sort {$a<=>$b} keys %kmer;
 
 	# set command
@@ -879,7 +958,7 @@ sub dipspades	{
 	# set libraries
 	my %data = &data($protocol, $global_opt, 0, 1, 1, 1);
 	my $max_rd_len = 0;
-	foreach my $library (@{$global_opt->{'protocol'}->{$protocol}->{'library'}})    {
+	foreach my $library (@{$global_opt->{'protocol'}->{$protocol}->{'library'}})	{
 		$max_rd_len = ($max_rd_len >= $global_opt->{'library'}->{$library}->{'read_length'}) ? $max_rd_len : $global_opt->{'library'}->{$library}->{'read_length'};
 	}
 	
@@ -908,18 +987,18 @@ sub dipspades	{
 	}
 
 	# PE, MP, and HQMP libraries
-	my @pe;
+	my @libs;
 	if (defined($data{'pe'}))	{
-		push @pe, sort keys %{$data{'pe'}};
+		push @libs, sort keys %{$data{'pe'}};
 	}
 	if (defined($data{'mp'}))	{
-		push @pe, sort keys %{$data{'mp'}};
+		push @libs, sort keys %{$data{'mp'}};
 	}
 	if (defined($data{'hqmp'}))	{
-		push @pe, sort keys %{$data{'hqmp'}};
+		push @libs, sort keys %{$data{'hqmp'}};
 	}
-	if (@pe)	{
-		foreach my $library (@pe)	{
+	if (@libs)	{
+		foreach my $library (@libs)	{
 			my $read_type = $global_opt->{'library'}->{$library}->{'read_type'};
 			$libs .= " --$read_type".$lib_num{$read_type}."-1 $data{$read_type}->{$library}->[0] --$read_type".$lib_num{$read_type}."-2 $data{$read_type}->{$library}->[1]";
 			$lib_num{$read_type}++;
@@ -942,8 +1021,8 @@ sub dipspades	{
 			$kmer{'127'} = 1;
 		}
 	}
-	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? [ ($global_opt->{'protocol'}->{$protocol}->{'kmer'}, 0) ] : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 1, 0);
-	$kmer{$kmer->[0]} = 1;
+	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? $global_opt->{'protocol'}->{$protocol}->{'kmer'} : &kmergenie($protocol, $global_opt, 0, 0, 1, 1, 1, 0);
+	$kmer{$kmer} = 1;
 	$kmer = join ",", sort {$a<=>$b} keys %kmer;
 
 	# set command
@@ -974,7 +1053,7 @@ sub velvet	{
 	print "Starts the assembly protocol $protocol:\t".localtime()."\n";
 	
 	# set libraries
-	my %data = &data($protocol, $global_opt, 1, 1, 1, 1);
+	my %data = &data($protocol, $global_opt, 0, 1, 1, 1);
 	
 	# set library numbering
 	my %lib_num; my $lib_num = 1;
@@ -998,28 +1077,36 @@ sub velvet	{
 	}
 
 	# PE/MP/HQMP libraries
-	my @pe;
+	my @libs;
 	if (defined($data{'pe'}))	{
-		push @pe, sort keys %{$data{'pe'}};
+		push @libs, sort keys %{$data{'pe'}};
 	}
 	if (defined($data{'mp'}))	{
-		push @pe, sort keys %{$data{'mp'}};
+		push @libs, sort keys %{$data{'mp'}};
 	}
 	if (defined($data{'hqmp'}))	{
-		push @pe, sort keys %{$data{'hqmp'}};
+		push @libs, sort keys %{$data{'hqmp'}};
 	}
-	if (@pe)	{
-		foreach my $library (sort keys %{$data{'pe'}})	{
+	if (@libs)	{
+		foreach my $library (@libs)	{
 			my $read_type = $global_opt->{'library'}->{$library}->{'read_type'};
-			$libs .= " -fastq -shortPaired$lib_num{$library} -separate $data{$read_type}->{$library}->[0] $data{$read_type}->{$library}->[1]";
+			if ($read_type =~ /^(pe|hqmp)$/)	{
+				$libs .= " -fastq -shortPaired$lib_num{$library} -separate $data{$read_type}->{$library}->[0] $data{$read_type}->{$library}->[1]";
+			}	else	{
+				my $cmd = "$global_opt->{'bin'}->{'fastx'} -Q33 -i $data{$read_type}->{$library}->[0] -o $library\_1.fq"; 
+				&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
+				$cmd = "$global_opt->{'bin'}->{'fastx'} -Q33 -i $data{$read_type}->{$library}->[1] -o $library\_2.fq"; 
+				&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
+				$libs .= " -fastq -shortPaired$lib_num{$library} -separate $library\_1.fq $library\_2.fq";
+			}
 		}
 	}
 	
 	# set k-mer
-	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? [ ($global_opt->{'protocol'}->{$protocol}->{'kmer'}, 0) ] : &kmergenie($protocol, $global_opt, 1, 1, 1, 1, 0, 0);
+	my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? $global_opt->{'protocol'}->{$protocol}->{'kmer'} : &kmergenie($protocol, $global_opt, 0, 1, 1, 1, 0, 0);
 	
 	# set command for velveth
-	my $cmd = "$global_opt->{'bin'}->{'velveth'} . $kmer->[0]".$libs;
+	my $cmd = "$global_opt->{'bin'}->{'velveth'} . $kmer".$libs;
 	
 	# run velveth
 	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
@@ -1030,8 +1117,8 @@ sub velvet	{
 		$cmd .= " $global_opt->{'protocol'}->{$protocol}->{'option'}";
 	}
 	
-	if (@pe)	{	
-		foreach my $library (@pe)	{
+	if (@libs)	{	
+		foreach my $library (@libs)	{
 			$cmd .= " -ins_length".$lib_num{$library}." $global_opt->{'library'}->{$library}->{'frag_mean'} -ins_length".$lib_num{$library}."_sd $global_opt->{'library'}->{$library}->{'frag_sd'}";
 		}
 	}
@@ -1067,7 +1154,7 @@ sub data	{
 	# SE data: SE libraries and SE reads generated from PE/MP/HQMP libraries during QC
 	if (defined($lib{'se'}))	{
 		foreach my $library (@{$lib{'se'}})	{
-			if ($global_opt->{'library'}->{$library}->{'qc'} eq "0" || $global_opt->{'library'}->{$library}->{'qc'} eq "original")       {
+			if ($global_opt->{'library'}->{$library}->{'qc'} eq "0" || $global_opt->{'library'}->{$library}->{'qc'} eq "original")	{
 				$data{'se'}->{$library} = "$global_opt->{'out_dir'}/libraries/$library/$library.fq";
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
 				$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
@@ -1096,10 +1183,6 @@ sub data	{
 					if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq")	{
 						$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
 					}
-				}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "nextclip")	{
-					if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq")	{
-						$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq";
-					}
 				}
 			}
 		}
@@ -1107,13 +1190,13 @@ sub data	{
 			foreach my $library (@{$lib{'hqmp'}})	{
 				if ($global_opt->{'library'}->{$library}->{'qc'} eq "0" || $global_opt->{'library'}->{$library}->{'qc'} eq "original")	{
 					next;
-				}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
-					if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq")	{
-						$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
-					}
 				}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "nextclip")	{
 					if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq")	{
 						$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq";
+					}
+				}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
+					if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq")	{
+						$data{'se'}->{$library} = "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq";
 					}
 				}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "correction")	{
 					if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.cor.fq")	{
@@ -1144,21 +1227,19 @@ sub data	{
 				$data{'mp'}->{$library} = [ ("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq") ];
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
 				$data{'mp'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq") ];
-			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "nextclip")	{
-				$data{'mp'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq") ];
 			}
 		}
 	}
 
-	# HQMP libraries:  original, trimmomatic, nextclip, and quake
+	# HQMP libraries: original, trimmomatic, nextclip, and quake
 	if ($hqmp && defined($lib{'hqmp'}))	{
 		foreach my $library (@{$lib{'hqmp'}})	{
 			if ($global_opt->{'library'}->{$library}->{'qc'} eq "0" || $global_opt->{'library'}->{$library}->{'qc'} eq "original")	{
-				$data{'hqmp'}->{$library} = [ ("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq",  "$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq") ];
-			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
-				$data{'hqmp'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq") ];
+				$data{'hqmp'}->{$library} = [ ("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq") ];
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "nextclip")	{
 				$data{'hqmp'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq") ];
+			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "trimmomatic")	{
+				$data{'hqmp'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq") ];
 			}	elsif ($global_opt->{'library'}->{$library}->{'qc'} eq "correction")	{
 				$data{'hqmp'}->{$library} = [ ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.cor.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.cor.fq") ];
 			}
@@ -1195,18 +1276,18 @@ sub kmergenie	{
 	}
 
 	# PE, MP, and HQMP libraries
-	my @pe;
+	my @libs;
 	if (defined($data{'pe'}))	{
-		push @pe, sort keys %{$data{'pe'}};
+		push @libs, sort keys %{$data{'pe'}};
 	}
 	if (defined($data{'mp'}))	{
-		push @pe, sort keys %{$data{'mp'}};
+		push @libs, sort keys %{$data{'mp'}};
 	}
 	if (defined($data{'hqmp'}))	{
-		push @pe, sort keys %{$data{'hqmp'}};
+		push @libs, sort keys %{$data{'hqmp'}};
 	}
-	if (@pe)	{
-		foreach my $library (@pe)	{
+	if (@libs)	{
+		foreach my $library (@libs)	{
 			my $read_type = $global_opt->{'library'}->{$library}->{'read_type'};
 			system("cat $data{$read_type}->{$library}->[0] $data{$read_type}->{$library}->[1] >> $protocol.fq");
 		}
@@ -1242,10 +1323,10 @@ sub kmergenie	{
 			$min_abundance = $1;
 			print "\tKmerGenie analysis finished successfully! The minimum abundance of $min_abundance will be used for the assembly protocol $protocol.\n";
 		}	else	{
-			print "\tWARNING: KmerGenie failed to find a suitable minimum abundance! The minimum abundance of 3 will be used for the assembly protocol $protocol.\n";
+			print "\tWARNING: KmerGenie failed to find a suitable minimum abundance! The minimum abundance of $min_abundance will be used for the assembly protocol $protocol.\n";
 		}
 	}
-	return [($kmer, $min_abundance)];
+	return ($min_abundance, $kmer);
 }
 
 sub quast	{
@@ -1255,7 +1336,7 @@ sub quast	{
 	
 	my @assemblies = glob "$global_opt->{'out_dir'}/assemblies/*.$type.fa";
 	if (@assemblies)	{
-		my $cmd = "$global_opt->{'bin'}->{'quast'} -T $global_opt->{'threads'} -o $global_opt->{'out_dir'}/evaluation/$type";
+		my $cmd = "$global_opt->{'bin'}->{'quast'} -T $global_opt->{'threads'} -o $global_opt->{'out_dir'}/evaluation/$type\_QUAST";
 		# determine if the "eukaryote" option should be turned on
 		if ($global_opt->{'quast'}->{'eukaryote'})	{
 			$cmd .= " --eukaryote";
@@ -1266,15 +1347,88 @@ sub quast	{
 		}
 		# determine if the GAGE report should be generated
 		if (defined($global_opt->{'genome'}))	{
-			$cmd .= " -R  $global_opt->{'genome'}";
+			$cmd .= " -R $global_opt->{'genome'}";
 			if ($global_opt->{'quast'}->{'gage'})	{
 				$cmd .= " --gage";
 			}
 		}	else	{
-			if ($$global_opt->{'quast'}->{'gage'})	{
+			if ($global_opt->{'quast'}->{'gage'})	{
 				print "\tWARNING: GAGE mode requires a reference genome. The -gage option is ingnored and a full evaluation will be performed.\n";
 			}
 		}
+
+		my @names;
+		foreach my $file (@assemblies)	{
+			(my $protocol = basename($file)) =~ s/\.$type\.fa//;
+			print "\tfound the $type assembly for protocol $protocol!\n";
+			push @names, $protocol;
+		}
+		my $name = join ",", @names;
+		my $assemblies = join " ", @assemblies;
+		$cmd .= " -l $name $assemblies";
+
+		&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$type.QUAST.log");
+		if ($global_opt->{'quast'}->{'gage'} == 1 && -e "$global_opt->{'out_dir'}/evaluation/$type\_QUAST/gage_report.txt")	{
+			system("ln $global_opt->{'out_dir'}/evaluation/$type\_QUAST/gage_report.txt $global_opt->{'out_dir'}/evaluation/$type.gage_report.txt");
+			print "QUAST evalution of assembled $type finished!\n\n";
+			&Utilities::rank_assembly($type, $global_opt, 1, 1);
+		}	elsif ($global_opt->{'quast'}->{'gage'} == 0 && -e "$global_opt->{'out_dir'}/evaluation/$type\_QUAST/report.txt")	{
+			system("ln $global_opt->{'out_dir'}/evaluation/$type\_QUAST/report.txt $global_opt->{'out_dir'}/evaluation/$type.report.txt");
+			print "QUAST evalution of assembled $type finished!\n\n";
+=item
+			if (defined($global_opt->{'genome'}))	{
+				&Utilities::rank_assembly($type, $global_opt, 0, 1);
+			}	else	{
+				&Utilities::rank_assembly($type, $global_opt, 0, 0);
+			}
+=cut
+		}	else	{
+			print "WARNING: No evalution report found, the QUAST evaluation of assembled $type failed!\n\n";
+		}
+	}	else	{
+		print "WARNING: There is no successfully assembled $type!\n\n";
+	}	
+
+	return;
+}
+
+sub reapr_prep	{
+	
+}
+
+sub reapr	{
+	(my $type, my $global_opt) = @_;
+	
+	print "Starts REAPR evalution of assembled $type:\t".localtime()."\n";
+	
+	my @assemblies = glob "$global_opt->{'out_dir'}/assemblies/*.$type.fa";
+	if (@assemblies)	{
+		foreach my $assembly (@assemblies)	{
+			# REAPR evaluation consists of three steps:
+			# 1. map long insert libraries
+		}
+
+		my $cmd = "$global_opt->{'bin'}->{'repar'} -T $global_opt->{'threads'} -o $global_opt->{'out_dir'}/evaluation/$type";
+		# determine if the "eukaryote" option should be turned on
+		if ($global_opt->{'quast'}->{'eukaryote'})	{
+			$cmd .= " --eukaryote";
+		}
+		# determine if gene annotation is available for evaluation
+		if (defined($global_opt->{'quast'}->{'gene'}))	{
+			$cmd .= " -G $global_opt->{'quast'}->{'gene'}";
+		}
+		# determine if the GAGE report should be generated
+		if (defined($global_opt->{'genome'}))	{
+			$cmd .= " -R $global_opt->{'genome'}";
+			if ($global_opt->{'quast'}->{'gage'})	{
+				$cmd .= " --gage";
+			}
+		}	else	{
+			if ($global_opt->{'quast'}->{'gage'})	{
+				print "\tWARNING: GAGE mode requires a reference genome. The -gage option is ingnored and a full evaluation will be performed.\n";
+			}
+		}
+
 		my @names;
 		foreach my $file (@assemblies)	{
 			(my $protocol = basename($file)) =~ s/\.$type\.fa//;
@@ -1289,9 +1443,17 @@ sub quast	{
 		if ($global_opt->{'quast'}->{'gage'} == 1 && -e "$global_opt->{'out_dir'}/evaluation/$type/gage_report.txt")	{
 			system("ln $global_opt->{'out_dir'}/evaluation/$type/gage_report.txt $global_opt->{'out_dir'}/evaluation/$type.gage_report.txt");
 			print "QUAST evalution of assembled $type finished!\n\n";
+			&Utilities::rank_assembly($type, $global_opt, 1, 1);
 		}	elsif ($global_opt->{'quast'}->{'gage'} == 0 && -e "$global_opt->{'out_dir'}/evaluation/$type/report.txt")	{
 			system("ln $global_opt->{'out_dir'}/evaluation/$type/report.txt $global_opt->{'out_dir'}/evaluation/$type.report.txt");
 			print "QUAST evalution of assembled $type finished!\n\n";
+=item
+			if (defined($global_opt->{'genome'}))	{
+				&Utilities::rank_assembly($type, $global_opt, 0, 1);
+			}	else	{
+				&Utilities::rank_assembly($type, $global_opt, 0, 0);
+			}
+=cut
 		}	else	{
 			print "WARNING: No evalution report found, the QUAST evaluation of assembled $type failed!\n\n";
 		}
