@@ -529,7 +529,7 @@ sub platanus	{
 	if ($global_opt->{'protocol'}->{$protocol}->{'kmer'})	{
 		$cmd .= " -k $global_opt->{'protocol'}->{$protocol}->{'kmer'}";
 	}
-	if ($global_opt->{'protocol'}->{$protocol}->{'option'} =~ /\w/)	{
+	if (defined($global_opt->{'protocol'}->{$protocol}->{'option'}))	{
 		$cmd .= " $global_opt->{'protocol'}->{$protocol}->{'option'}";
 	}
 	$cmd .= " $assembly_libs";
@@ -541,9 +541,10 @@ sub platanus	{
 
 	# 3. gap close
 	$cmd = "$global_opt->{'bin'}->{'platanus'} gap_close -t $global_opt->{'threads'} -o $protocol -c $protocol\_scaffold.fa $scaffolding_libs";
+	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");	
 
 	# copy assembly files
-	if (-e "$protocol\-contigs.fa")	{
+	if (-e "$protocol\_contig.fa")	{
 		system("cp $protocol\_contig.fa $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
 		system("cp $protocol\_gapClosed.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
 		print "The assembly protocol $protocol finished successfully!\n\n";
@@ -1123,13 +1124,17 @@ sub velvet	{
 		}
 	}
 
-	# run velvetg
-	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
+	# run velvetg with scaffolding
+	&Utilities::execute_cmd("$cmd -clean yes", "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
+	system("mv contigs.fa scaffolds.fa");
+
+	# run velvetg without scaffolding
+	&Utilities::execute_cmd("$cmd -scaffolding no", "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
 
 	# creat hard links of assembly files
 	if (-e "contigs.fa")	{
 		system("ln contigs.fa $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
-		system("ln contigs.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
+		system("ln scaffolds.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
 		print "The assembly protocol $protocol finished successfully!\n\n";
 	}	else	{
 		print "WARNING: No assembly found, $protocol failed!\n\n";

@@ -109,7 +109,7 @@ sub init_global_opt	{
 		},
 		"velvet" => {
 			"kmer" => 0,
-			"option" => "-exp_cov auto -scaffolding yes",
+			"option" => "-exp_cov auto",
 		},
 		"quast" => {
 			"eukaryote" => 1,
