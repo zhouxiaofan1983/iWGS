@@ -161,10 +161,10 @@ sub allpaths	{
 	}
 	close (LIBS);
 	
-	# prepare the data
+	# preapre the data
 	mkdir("mydata");
-	my $prepare_bin = dirname($global_opt->{'bin'}->{'allpaths'})."/PrepareAllPathsInputs.pl";
-	my $cmd = "$prepare_bin DATA_DIR=$global_opt->{'out_dir'}/protocols/$protocol/mydata PLOIDY=$global_opt->{'protocol'}->{$protocol}->{'ploidy'}";
+	my $preapre_bin = dirname($global_opt->{'bin'}->{'allpaths'})."/PreapreAllPathsInputs.pl";
+	my $cmd = "$preapre_bin DATA_DIR=$global_opt->{'out_dir'}/protocols/$protocol/mydata PLOIDY=$global_opt->{'protocol'}->{$protocol}->{'ploidy'}";
 	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
 
 	# run ALLPATHS-LG
@@ -195,7 +195,7 @@ sub ca	{
 	# set libraries
 	my %data = &data($protocol, $global_opt, 0, 1, 1, 1);
 
-	# prepare illumina data frg files
+	# preapre illumina data frg files
 	my @frg;
 	my $fastqToCA_bin = ((defined($global_opt->{'bin'}->{'pbcr'})) ? dirname($global_opt->{'bin'}->{'pbcr'}) : dirname($global_opt->{'bin'}->{'runca'}))."/fastqToCA";
 
@@ -1335,136 +1335,154 @@ sub kmergenie	{
 }
 
 sub quast	{
-	(my $type, my $global_opt) = @_;
+	(my $mode, my $global_opt) = @_;
 	
-	print "Starts QUAST evalution of assembled $type:\t".localtime()."\n";
-	
-	my @assemblies = glob "$global_opt->{'out_dir'}/assemblies/*.$type.fa";
-	if (@assemblies)	{
-		my $cmd = "$global_opt->{'bin'}->{'quast'} -T $global_opt->{'threads'} -o $global_opt->{'out_dir'}/evaluation/$type\_QUAST";
-		# determine if the "eukaryote" option should be turned on
-		if ($global_opt->{'quast'}->{'eukaryote'})	{
-			$cmd .= " --eukaryote";
-		}
-		# determine if gene annotation is available for evaluation
-		if (defined($global_opt->{'quast'}->{'gene'}))	{
-			$cmd .= " -G $global_opt->{'quast'}->{'gene'}";
-		}
-		# determine if the GAGE report should be generated
-		if (defined($global_opt->{'genome'}))	{
-			$cmd .= " -R $global_opt->{'genome'}";
-			if ($global_opt->{'quast'}->{'gage'})	{
-				$cmd .= " --gage";
+	my $eval_dir = ($mode eq "assemblies") ? "evaluation" : "evaluation.cor";
+	foreach my $type (('contigs', 'scaffolds'))	{
+		print "Starts QUAST evalution of assembled $type:\t".localtime()."\n";
+		my @assemblies = glob "$global_opt->{'out_dir'}/$mode/*.$type.fa";
+		if (@assemblies)	{
+			my $cmd = "$global_opt->{'bin'}->{'quast'} -t $global_opt->{'threads'} -o $global_opt->{'out_dir'}/$eval_dir/$type\_QUAST";
+			# determine if the "eukaryote" option should be turned on
+			if ($global_opt->{'quast'}->{'eukaryote'})	{
+				$cmd .= " --eukaryote";
 			}
-		}	else	{
-			if ($global_opt->{'quast'}->{'gage'})	{
-				print "\tWARNING: GAGE mode requires a reference genome. The -gage option is ingnored and a full evaluation will be performed.\n";
+			# determine if gene annotation is available for evaluation
+			if (defined($global_opt->{'quast'}->{'gene'}))	{
+				$cmd .= " -G $global_opt->{'quast'}->{'gene'}";
 			}
-		}
-
-		my @names;
-		foreach my $file (@assemblies)	{
-			(my $protocol = basename($file)) =~ s/\.$type\.fa//;
-			print "\tfound the $type assembly for protocol $protocol!\n";
-			push @names, $protocol;
-		}
-		my $name = join ",", @names;
-		my $assemblies = join " ", @assemblies;
-		$cmd .= " -l $name $assemblies";
-
-		&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$type.QUAST.log");
-		if ($global_opt->{'quast'}->{'gage'} == 1 && -e "$global_opt->{'out_dir'}/evaluation/$type\_QUAST/gage_report.txt")	{
-			system("ln $global_opt->{'out_dir'}/evaluation/$type\_QUAST/gage_report.txt $global_opt->{'out_dir'}/evaluation/$type.gage_report.txt");
-			print "QUAST evalution of assembled $type finished!\n\n";
-			&Utilities::rank_assembly($type, $global_opt, 1, 1);
-		}	elsif ($global_opt->{'quast'}->{'gage'} == 0 && -e "$global_opt->{'out_dir'}/evaluation/$type\_QUAST/report.txt")	{
-			system("ln $global_opt->{'out_dir'}/evaluation/$type\_QUAST/report.txt $global_opt->{'out_dir'}/evaluation/$type.report.txt");
-			print "QUAST evalution of assembled $type finished!\n\n";
-=item
+			# determine if the GAGE report should be generated
 			if (defined($global_opt->{'genome'}))	{
-				&Utilities::rank_assembly($type, $global_opt, 0, 1);
+				$cmd .= " -R $global_opt->{'genome'}";
+				if ($global_opt->{'quast'}->{'gage'})	{
+					$cmd .= " --gage";
+				}
 			}	else	{
-				&Utilities::rank_assembly($type, $global_opt, 0, 0);
+				if ($global_opt->{'quast'}->{'gage'})	{
+					print "\tWARNING: GAGE mode requires a reference genome. The -gage option is ingnored and a full evaluation will be performed.\n";
+				}
 			}
-=cut
+	
+			my @names;
+			foreach my $file (@assemblies)	{
+				(my $protocol = basename($file)) =~ s/\.$type\.fa//;
+				print "\tfound the $type assembly for protocol $protocol!\n";
+				push @names, $protocol;
+			}
+			my $name = join ",", @names;
+			my $assemblies = join " ", @assemblies;
+			$cmd .= " -l $name $assemblies";
+	
+			unless (-d "$global_opt->{'out_dir'}/$eval_dir/$type\_QUAST")	{
+				my $log = ($mode eq "assemblies") ? "$global_opt->{'out_dir'}/logs/$type.QUAST.log" : "$global_opt->{'out_dir'}/logs/$type.cor.QUAST.log";
+				&Utilities::execute_cmd($cmd, $log);
+			}
+			if ($global_opt->{'quast'}->{'gage'} == 1 && -e "$global_opt->{'out_dir'}/$eval_dir/$type\_QUAST/gage_report.txt")	{
+				system("ln $global_opt->{'out_dir'}/$eval_dir/$type\_QUAST/gage_report.txt $global_opt->{'out_dir'}/$eval_dir/$type.gage_report.txt");
+				print "QUAST evalution of assembled $type finished!\n\n";
+				&Utilities::rank_assembly($eval_dir, $type, $global_opt, 1, 1);
+			}	elsif ($global_opt->{'quast'}->{'gage'} == 0 && -e "$global_opt->{'out_dir'}/$eval_dir/$type\_QUAST/report.txt")	{
+				system("ln $global_opt->{'out_dir'}/$eval_dir/$type\_QUAST/report.txt $global_opt->{'out_dir'}/$eval_dir/$type.report.txt");
+				print "QUAST evalution of assembled $type finished!\n\n";
+				if (defined($global_opt->{'genome'}))	{
+					&Utilities::rank_assembly($eval_dir, $type, $global_opt, 0, 1);
+				}	else	{
+					&Utilities::rank_assembly($eval_dir, $type, $global_opt, 0, 0);
+				}
+			}	else	{
+				print "WARNING: No evalution report found, the QUAST evaluation of assembled $type failed!\n\n";
+			}
 		}	else	{
-			print "WARNING: No evalution report found, the QUAST evaluation of assembled $type failed!\n\n";
+			print "WARNING: There is no $type assembly found in \"$global_opt->{'out_dir'}/$mode\"!\n\n";
 		}
-	}	else	{
-		print "WARNING: There is no successfully assembled $type!\n\n";
 	}	
 
 	return;
 }
 
-sub reapr_prep	{
-	
-}
-
 sub reapr	{
-	(my $type, my $global_opt) = @_;
-	
-	print "Starts REAPR evalution of assembled $type:\t".localtime()."\n";
-	
-	my @assemblies = glob "$global_opt->{'out_dir'}/assemblies/*.$type.fa";
-	if (@assemblies)	{
-		foreach my $assembly (@assemblies)	{
-			# REAPR evaluation consists of three steps:
-			# 1. map long insert libraries
-		}
+	my $global_opt = $_[0];
 
-		my $cmd = "$global_opt->{'bin'}->{'repar'} -T $global_opt->{'threads'} -o $global_opt->{'out_dir'}/evaluation/$type";
-		# determine if the "eukaryote" option should be turned on
-		if ($global_opt->{'quast'}->{'eukaryote'})	{
-			$cmd .= " --eukaryote";
+	print "Starts REAPR evalution:\t".localtime()."\n\n";
+
+	print "Prepare reads for REAPR evaluation:\n";
+	# preapre the read files/links for REAPR evaluation
+	# set up links to the PE library
+	my $short_lib = $global_opt->{'reapr'}->{'short'};
+	my $short_type = $global_opt->{'library'}->{$short_lib}->{'read_type'};
+	if ($short_type eq "pe")	{
+		if (-e "$short_lib\_1.fq")	{ system("rm $short_lib\_1.fq"); }
+		if (-e "$short_lib\_2.fq")	{ system("rm $short_lib\_2.fq"); }
+		system("ln $global_opt->{'out_dir'}/libraries/$short_lib/$short_lib\_1.fq $short_lib\_1.fq");
+		system("ln $global_opt->{'out_dir'}/libraries/$short_lib/$short_lib\_2.fq $short_lib\_2.fq");
+	}	elsif ($short_type eq "hqmp")	{
+		# to add
+	}
+	# reverse complement the MP library
+	my $long_lib = $global_opt->{'reapr'}->{'long'};
+	unless ($short_lib eq $long_lib)	{
+		my $long_type = $global_opt->{'library'}->{$long_lib}->{'read_type'};
+		print "\treverse complement $long_type library $long_lib:\n";
+		if (-e "$long_lib\_1.fq")	{ system("rm $long_lib\_1.fq"); }
+		if (-e "$long_lib\_2.fq")	{ system("rm $long_lib\_2.fq"); }
+		if ($long_type eq "pe")	{
+			# to add
+		}	elsif ($long_type eq "hqmp")	{
+			# to add
+		}	elsif ($long_type eq "mp")	{
+			my $cmd = "$global_opt->{'bin'}->{'fastx'} -Q33 -i $global_opt->{'out_dir'}/libraries/$long_lib/$long_lib\_1.fq -o $long_lib\_1.fq"; 
+			&Utilities::execute_cmd($cmd, "/dev/null");
+			$cmd = "$global_opt->{'bin'}->{'fastx'} -Q33 -i $global_opt->{'out_dir'}/libraries/$long_lib/$long_lib\_2.fq -o $long_lib\_2.fq"; 
+			&Utilities::execute_cmd($cmd, "/dev/null");
 		}
-		# determine if gene annotation is available for evaluation
-		if (defined($global_opt->{'quast'}->{'gene'}))	{
-			$cmd .= " -G $global_opt->{'quast'}->{'gene'}";
-		}
-		# determine if the GAGE report should be generated
-		if (defined($global_opt->{'genome'}))	{
-			$cmd .= " -R $global_opt->{'genome'}";
-			if ($global_opt->{'quast'}->{'gage'})	{
-				$cmd .= " --gage";
+	}
+	print "Reads preparation finished.\n\n";
+
+	foreach my $type (('contigs', 'scaffolds'))	{
+		my @assemblies = glob "$global_opt->{'out_dir'}/assemblies/*.$type.fa";
+		if (@assemblies)	{
+			foreach my $file (@assemblies)	{
+				(my $protocol = basename($file)) =~ s/\.$type\.fa//;
+
+				# skip if the reapr correction is already done:
+				if (-e "$protocol.$type.fa")	{
+					print "NOTE: REAPR correction of $type assembly for protocol $protocol already finished, skip to the next!\n\n";
+					next;
+				}	else	{
+					if (-d "$protocol.$type")	{ system("rm -rf $protocol.$type"); }
+					print "Found the $type assembly for protocol $protocol, performing REPAR correction:\n";
+				}
+
+				# REAPR evaluation consists of three steps:
+				# 1. preapre the assembly file
+				my $cmd = "$global_opt->{'bin'}->{'reapr'} facheck $file $protocol.$type";
+				&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.reapr.log");
+				# 2. map short insert library if available
+				$cmd = "$global_opt->{'bin'}->{'reapr'} perfectmap $protocol.$type.fa $short_lib\_1.fq $short_lib\_2.fq $global_opt->{'library'}->{$short_lib}->{'frag_mean'} $protocol.short";
+				&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.reapr.log");
+				# 3. map long insert library
+				$cmd = "$global_opt->{'bin'}->{'reapr'} smaltmap -n $global_opt->{'threads'} $protocol.$type.fa $long_lib\_1.fq $long_lib\_2.fq $protocol.long.bam";
+				&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.reapr.log");
+				# 4. run reapr pipeline
+				$cmd = "$global_opt->{'bin'}->{'reapr'} pipeline $protocol.$type.fa $protocol.long.bam $protocol.$type $protocol.short";
+				&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.reapr.log");
+				system("rm $protocol.$type.fa $protocol.$type.info $protocol.$type.fa.fai $protocol.short.hist $protocol.short.perfect_cov.gz $protocol.short.perfect_cov.gz.tbi $protocol.long.bam $protocol.long.bam.bai $protocol.$type.run-pipeline.sh");
+
+				if (-e "$protocol.$type/04.break.broken_assembly.fa")	{
+					system("ln $protocol.$type/04.break.broken_assembly.fa $protocol.$type.fa");
+					print "The REAPR evaluation of $protocol $type finished successfully!\n\n";
+				}	else	{
+					system("rm -rf $protocol.$type");
+					print "WARNING: the REAPR evaluation of $protocol $type failed!\n\n";
+				}
 			}
 		}	else	{
-			if ($global_opt->{'quast'}->{'gage'})	{
-				print "\tWARNING: GAGE mode requires a reference genome. The -gage option is ingnored and a full evaluation will be performed.\n";
-			}
+			print "WARNING: There is no $type assembly found in \"$global_opt->{'out_dir'}/assemblies\"!\n\n";
 		}
+	}
 
-		my @names;
-		foreach my $file (@assemblies)	{
-			(my $protocol = basename($file)) =~ s/\.$type\.fa//;
-			print "\tfound the $type assembly for protocol $protocol!\n";
-			push @names, $protocol;
-		}
-		my $name = join ",", @names;
-		my $assemblies = join " ", @assemblies;
-		$cmd .= " -l $name $assemblies";
-
-		&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$type.QUAST.log");
-		if ($global_opt->{'quast'}->{'gage'} == 1 && -e "$global_opt->{'out_dir'}/evaluation/$type/gage_report.txt")	{
-			system("ln $global_opt->{'out_dir'}/evaluation/$type/gage_report.txt $global_opt->{'out_dir'}/evaluation/$type.gage_report.txt");
-			print "QUAST evalution of assembled $type finished!\n\n";
-			&Utilities::rank_assembly($type, $global_opt, 1, 1);
-		}	elsif ($global_opt->{'quast'}->{'gage'} == 0 && -e "$global_opt->{'out_dir'}/evaluation/$type/report.txt")	{
-			system("ln $global_opt->{'out_dir'}/evaluation/$type/report.txt $global_opt->{'out_dir'}/evaluation/$type.report.txt");
-			print "QUAST evalution of assembled $type finished!\n\n";
-=item
-			if (defined($global_opt->{'genome'}))	{
-				&Utilities::rank_assembly($type, $global_opt, 0, 1);
-			}	else	{
-				&Utilities::rank_assembly($type, $global_opt, 0, 0);
-			}
-=cut
-		}	else	{
-			print "WARNING: No evalution report found, the QUAST evaluation of assembled $type failed!\n\n";
-		}
-	}	else	{
-		print "WARNING: There is no successfully assembled $type!\n\n";
-	}	
+	# clean up the temporary read files/links for REAPR evaluation
+	system("rm $short_lib\_1.fq $short_lib\_2.fq $long_lib\_1.fq $long_lib\_2.fq");
 
 	return;
 }

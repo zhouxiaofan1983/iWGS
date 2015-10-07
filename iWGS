@@ -14,8 +14,8 @@ use Assembly;
 use Utilities;
 
 my $usage = "
-iWGS: in silico Whole Genome Sequencer
-Version 0.95
+iWGS: in silico Whole Genome Sequencer and Analyzer
+Version 1.0
 
 Usage: iWGS [options]
 
@@ -28,6 +28,7 @@ Basic options:
 -c | --cleanup	  		whether to clean up after all steps are finished (default: 0 [no])
 -r | --overwrite  		whether to overwrite if a library already exists (default: 0 [no])
 -v | --verify	  		verify the settings and quit
+-h | --help			print this usage message
 
 Advanced options:
 --Mode				iWGS can run in the following three modes: (default: 1)
@@ -55,6 +56,7 @@ my $global_ctrl_file;
 my $cleanup = 0;
 my $overwrite = 0;
 my $verify = 0;
+my $help = 0;
 my $mode = 1;
 my $real = 0;
 my $conf;
@@ -69,10 +71,15 @@ my %opt;
 	'cleanup|c' => \$cleanup,
 	'overwrite|r' => \$overwrite,
 	'verify|v' => \$verify,
+	'help|h' => \$help,
 	"Mode=i" => \$mode,
 	"Conf=s" => \$conf,
 	"Real" => \$real,
 );
+
+if ($help)	{
+	die "$usage\n";
+}
 
 # initialize global options with default settings
 
@@ -229,33 +236,35 @@ foreach my $protocol (sort keys %{$global_opt{'protocol'}})	{
 	&Assembly::assemble($protocol, \%global_opt, $overwrite, $cleanup);	
 }
 
-
 #############################
 # assembly evaluation
 #############################
 
-print "##############################\n# iWGS Stage 4: QUAST evaluation\t".localtime()."\n##############################\n\n";
+print "##############################\n# iWGS Stage 4: evaluation\t".localtime()."\n##############################\n\n";
 
 # remove the evaluation folder if it already exists
 if (-d "$global_opt{'out_dir'}/evaluation")	{
 	system("rm -rf $global_opt{'out_dir'}/evaluation");
 }
-
 mkdir("$global_opt{'out_dir'}/evaluation");
-chdir("$global_opt{'out_dir'}/evaluation");
 
-if (defined($global_opt{'reapr'}->{'long'}))	{
-	# prepare libraries for REAPR evaluation
-	&Assembly::reapr_prep(\%global_opt);
-	# perform REAPR evaluation on assembled contigs
-	&Assembly::reapr("contigs", \%global_opt);
-	# perform REAPR evaluation on assembled scaffolds
-	&Assembly::reapr("scaffolds", \%global_opt);
-}	else	{
-	# perform QUAST evaluation on assembled contigs
-	&Assembly::quast("contigs", \%global_opt);
-	# perform QUAST evaluation on assembled scaffolds
-	&Assembly::quast("scaffolds", \%global_opt);
+# perform QUAST evaluation on assemblies
+&Assembly::quast("assemblies", \%global_opt);
+
+if (defined($global_opt{'reapr'}))	{
+	# perform REAPR correction
+	unless (-d "$global_opt{'out_dir'}/assemblies.cor")	{
+		mkdir("$global_opt{'out_dir'}/assemblies.cor");
+	}
+	chdir("$global_opt{'out_dir'}/assemblies.cor");
+	&Assembly::reapr(\%global_opt);
+	
+	# perform QUAST evaluation on REAPR corrected assemblies
+	if (-d "$global_opt{'out_dir'}/evaluation.cor")	{
+		system("rm -rf $global_opt{'out_dir'}/evaluation.cor");
+	}
+	mkdir("$global_opt{'out_dir'}/evaluation.cor");
+	&Assembly::quast("assemblies.cor", \%global_opt);
 }
 
 # estimate cost
@@ -272,7 +281,6 @@ if ($cleanup)	{
 		system("rm -r $global_opt{'out_dir'}/preprocessed");
 	}
 }
-
 
 #############################
 # DONE

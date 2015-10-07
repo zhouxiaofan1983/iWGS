@@ -16,7 +16,7 @@ sub prepare_real	{
 		}	else	{
 			return 0;
 		}
-	}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(pe|mp|hqmp)$/)	{
+	}	elsif ($global_opt->{'library'}->{$library}->{'read_type'} =~ /^(pe|mp)$/)	{
 		if (-e "$global_opt->{'out_dir'}/real_data/$library\_1.fq" || -e "$global_opt->{'out_dir'}/real_data/$library\_2.fq")	{
 			if (-e "$global_opt->{'out_dir'}/real_data/$library\_1.fq" && -e "$global_opt->{'out_dir'}/real_data/$library\_2.fq")	{
 				unless ($overwrite == 0 && -e "$library\_1.fq" && -e "$library\_2.fq")	{
@@ -46,6 +46,7 @@ sub prepare_real	{
 	# cleanup empty temp files
 	unless ($global_opt->{'library'}->{$library}->{'read_type'} eq "se")	{
 		system("rm temp_1.fq temp_2.fq");
+=item
 		if ($global_opt->{'library'}->{$library}->{'read_type'} eq "hqmp")	{
 			print "Reverse complement $library.\n";
 			$cmd = "$global_opt->{'bin'}->{'fastx'} -Q33 -i $library\_1.fq -o $library\_1.fq.rc";
@@ -55,7 +56,7 @@ sub prepare_real	{
 			&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$library.prep_real.log");
 			system("mv $library\_2.fq.rc $library\_2.fq");
 		}
-		
+=cut		
 	}
 
 	print "Conversion to Phred33 finished.\n";
@@ -201,7 +202,7 @@ sub nextclip	{
 		if (-e "$library\_1.nc.fq") { system("rm $library\_1.nc.fq"); }
 		if (-e "$library\_2.nc.fq") { system("rm $library\_2.nc.fq"); }
 		if (-e "$library.nc.fq") { system("rm $library.nc.fq"); }
-		print "\tWARNING: No read pair has survived NextClip trimming.\n";
+		print "\tWARNING: No read pair has survived, NextClip trimming not applied!\n";
 	}
 	
 	return;
@@ -254,7 +255,7 @@ sub trimmomatic	{
 	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$library.QC.log");
 
 	# combine unpaired reads
-	if ($lib_opt->{'read_type'} =~ /^(pe|hqmp)$/)	{
+	if ($lib_opt->{'read_type'} =~ /^(pe|mp|hqmp)$/)	{
 		if (-s "$library\_1.tm-se.fq" || -s "$library\_2.tm-se.fq")	{
 			system("cat $library\_1.tm-se.fq $library\_2.tm-se.fq >> $library.tm.fq");
 		}

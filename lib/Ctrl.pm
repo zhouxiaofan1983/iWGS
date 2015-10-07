@@ -23,14 +23,6 @@ sub init_global_opt	{
 		"pricing_info" => undef,
 		"custom_weight" => undef,
 		"qc" => undef,
-		"pirs" => {
-			"error_rate" => 1,						# set to "1" to use default setting of pIRS
-			"error_profile" => undef,					# leave it blank to use the default profile of pIRS
-			"gc" => 1,
-			"gc_profile" => undef,						# leave it blank to use the default profile of pIRS
-			"indel" => 1,
-			"indel_profile" => undef,
-		},									# leave it blank to use the default profile of pIRS
 		"art" => {
 			"qual_shift1" => 0,
 			"qual_shift2" => 0,
@@ -41,6 +33,14 @@ sub init_global_opt	{
 			"del_rate1" => "0.00011",
 			"del_rate2" => "0.00023",
 		},
+		"pirs" => {
+			"error_rate" => 1,						# set to "1" to use default setting of pIRS
+			"error_profile" => undef,					# leave it blank to use the default profile of pIRS
+			"gc" => 1,
+			"gc_profile" => undef,						# leave it blank to use the default profile of pIRS
+			"indel" => 1,
+			"indel_profile" => undef,
+		},									# leave it blank to use the default profile of pIRS
 		"pbsim" => {
 			"ratio" => "10:60:30",
 			"length_mean" => "3000",
@@ -51,13 +51,13 @@ sub init_global_opt	{
 			"accuracy_min" => "0.75",
 		},
 		"trimmomatic" => {
-			"on" => 0,
+			"on" => 1,
 			"trailing" => "3",
 			"adapters" => undef,
 			"minlen" => "25",
 		},
 		"nextclip" => {
-			"on" => 0,
+			"on" => 1,
 			"adapter" => "CTGTCTCTTATACACATCT",
 			"minlen" => "25",
 		},
@@ -117,43 +117,42 @@ sub init_global_opt	{
 			"gene" => undef,
 		},
 		"reapr" => {
-			"short" => undef,
-			"long" => undef,
+			"libs" => undef,
 		},
 		"library" => undef,
 		"protocol" => undef,
 	);
 		
-	$global_opt{'bin'}->{'pirs'} = (-e "$root_dir/tools/pIRS/pirs") ? "$root_dir/tools/pIRS/pirs" : File::Which::which("pirs");
 	$global_opt{'bin'}->{'art'} = (-e "$root_dir/tools/ART/art_illumina") ? "$root_dir/tools/ART/art_illumina" : File::Which::which("art_illumina");
+	$global_opt{'bin'}->{'pirs'} = (-e "$root_dir/tools/pIRS/pirs") ? "$root_dir/tools/pIRS/pirs" : File::Which::which("pirs");
 	$global_opt{'bin'}->{'pbsim'} = (-e "$root_dir/tools/PBSIM/bin/pbsim") ? "$root_dir/tools/PBSIM/bin/pbsim" : File::Which::which("pbsim");
 	$global_opt{'bin'}->{'trimmomatic'} = (-e "$root_dir/tools/Trimmomatic/trimmomatic.jar") ? "$root_dir/tools/Trimmomatic/trimmomatic.jar" : File::Which::which("trimmomatic.jar");
 	$global_opt{'bin'}->{'nextclip'} = (-e "$root_dir/tools/NextClip/bin/nextclip") ? "$root_dir/tools/NextClip/bin/nextclip" : File::Which::which("nextclip");
-	$global_opt{'bin'}->{'lighter'} = (-e "$root_dir/tools/lighter") ? "$root_dir/tools/lighter" : File::Which::which("lighter");
+	$global_opt{'bin'}->{'lighter'} = (-e "$root_dir/tools/Lighter/lighter") ? "$root_dir/tools/Lighter/lighter" : File::Which::which("lighter");
 	$global_opt{'bin'}->{'quake'} = (-e "$root_dir/tools/Quake/bin/quake.py") ? "$root_dir/tools/Quake/bin/quake.py" : File::Which::which("quake.py");
-	$global_opt{'bin'}->{'kmergenie'} = (-e "$root_dir/tools/kmergenie/kmergenie") ? "$root_dir/tools/kmergenie/kmergenie" : File::Which::which("kmergenie");
+	$global_opt{'bin'}->{'kmergenie'} = (-e "$root_dir/tools/KmerGenie/kmergenie") ? "$root_dir/tools/KmerGenie/kmergenie" : File::Which::which("kmergenie");
 	$global_opt{'bin'}->{'abyss'} = (-e "$root_dir/tools/ABYSS/bin/abyss-pe") ? "$root_dir/tools/ABYSS/bin/abyss-pe" : File::Which::which("abyss-pe");
 	$global_opt{'bin'}->{'allpaths'} = (-e "$root_dir/tools/ALLPATHS-LG/bin/RunAllPathsLG") ? "$root_dir/tools/ALLPATHS-LG/bin/RunAllPathsLG" : File::Which::which("RunAllPathsLG");
-	$global_opt{'bin'}->{'pbcr'} = (-e "$root_dir/tools/CA/Linux-amd64/bin/PBcR") ? "$root_dir/tools/CA/Linux-amd64/bin/PBcR" : File::Which::which("PBcR");
-	$global_opt{'bin'}->{'runca'} = (-e "$root_dir/tools/CA/Linux-amd64/bin/runCA") ? "$root_dir/tools/CA/Linux-amd64/bin/runCA" : File::Which::which("runCA");
-	$global_opt{'bin'}->{'discovar'} = (-e "$root_dir/tools/DISCOVAR/bin/DiscovarExp") ? "$root_dir/tools/DISCOVAR/bin/DiscovarExp" : File::Which::which("DiscovarExp");
+	$global_opt{'bin'}->{'pbcr'} = (-e "$root_dir/tools/CA/bin/PBcR") ? "$root_dir/tools/CA/bin/PBcR" : File::Which::which("PBcR");
+	$global_opt{'bin'}->{'runca'} = (-e "$root_dir/tools/CA/bin/runCA") ? "$root_dir/tools/CA/bin/runCA" : File::Which::which("runCA");
+	$global_opt{'bin'}->{'blasr'} = (-e "$root_dir/tools/CA/bin/blasr") ? "$root_dir/tools/CA/bin/blasr" : File::Which::which("blasr");
+	$global_opt{'bin'}->{'pbdagcon'} = (-e "$root_dir/tools/CA/bin/pbdagcon") ? "$root_dir/tools/CA/bin/pbdagcon" : File::Which::which("pbdagcon");
+	$global_opt{'bin'}->{'bank-transact'} = (-e "$root_dir/tools/dependencies/bank-transact") ? "$root_dir/tools/dependencies/bank-transact" : File::Which::which("bank-transact");
+	$global_opt{'bin'}->{'discovar'} = (-e "$root_dir/tools/DISCOVAR/bin/DiscovarDeNovo") ? "$root_dir/tools/DISCOVAR/bin/DiscovarDeNovo" : File::Which::which("DiscovarDeNovo");
 	$global_opt{'bin'}->{'masurca'} = (-e "$root_dir/tools/MaSuRCA/bin/masurca") ? "$root_dir/tools/MaSuRCA/bin/masurca" : File::Which::which("masurca");
-	$global_opt{'bin'}->{'minia'} = (-e "$root_dir/tools/Minia/minia") ? "$root_dir/tools/Minia/minia" : File::Which::which("minia");
+	$global_opt{'bin'}->{'minia'} = (-e "$root_dir/tools/Minia/bin/minia") ? "$root_dir/tools/Minia/bin/minia" : File::Which::which("minia");
 	$global_opt{'bin'}->{'platanus'} = (-e "$root_dir/tools/Platanus/platanus") ? "$root_dir/tools/Platanus/platanus" : File::Which::which("platanus");
 	$global_opt{'bin'}->{'sga'} = (-e "$root_dir/tools/SGA/bin/sga") ? "$root_dir/tools/SGA/bin/sga" : File::Which::which("sga");
+	$global_opt{'bin'}->{'bwa'} = (-e "$root_dir/tools/dependencies/bwa") ? "$root_dir/tools/dependencies/bwa" : File::Which::which("bwa");
+	$global_opt{'bin'}->{'samtools'} = (-e "$root_dir/tools/dependencies/samtools") ? "$root_dir/tools/dependencies/samtools" : File::Which::which("samtools");
 	$global_opt{'bin'}->{'soapdenovo2'} = (-e "$root_dir/tools/SOAPdenovo2/SOAPdenovo2") ? "$root_dir/tools/SOAPdenovo2/SOAPdenovo2" : File::Which::which("SOAPdenovo2");
 	$global_opt{'bin'}->{'spades'} = (-e "$root_dir/tools/SPAdes/bin/spades.py") ? "$root_dir/tools/SPAdes/bin/spades.py" : File::Which::which("spades.py");
 	$global_opt{'bin'}->{'dipspades'} = (-e "$root_dir/tools/SPAdes/bin/dipspades.py") ? "$root_dir/tools/SPAdes/bin/dipspades.py" : File::Which::which("dipspades.py");
 	$global_opt{'bin'}->{'velvetg'} = (-e "$root_dir/tools/Velvet/velvetg") ? "$root_dir/tools/Velvet/velvetg" : File::Which::which("velvetg");
 	$global_opt{'bin'}->{'velveth'} = (-e "$root_dir/tools/Velvet/velveth") ? "$root_dir/tools/Velvet/velveth" : File::Which::which("velveth");
-	$global_opt{'bin'}->{'quast'} = (-e "$root_dir/tools/QUAST/quast.py") ? "$root_dir/tools/QUAST/quast.py" : File::Which::which("quast.py");
-	$global_opt{'bin'}->{'reapr'} = (-e "$root_dir/tools/Reapr/reapr") ? "$root_dir/tools/Reapr/reapr" : File::Which::which("reapr");
-	$global_opt{'bin'}->{'bank-transact'} = (-e "$root_dir/tools/dependencies/bank-transact") ? "$root_dir/tools/dependencies/bank-transact" : File::Which::which("bank-transact");
-	$global_opt{'bin'}->{'blasr'} = (-e "$root_dir/tools/CA/Linux-amd64/bin/blasr") ? "$root_dir/tools/CA/Linux-amd64/bin/blasr" : File::Which::which("blasr");
-	$global_opt{'bin'}->{'bwa'} = (-e "$root_dir/tools/dependencies/bwa") ? "$root_dir/tools/dependencies/bwa" : File::Which::which("bwa");
-	$global_opt{'bin'}->{'pbdagcon'} = (-e "$root_dir/tools/CA/Linux-amd64/bin/pbdagcon") ? "$root_dir/tools/CA/Linux-amd64/bin/pbdagcon" : File::Which::which("pbdagcon");
-	$global_opt{'bin'}->{'samtools'} = (-e "$root_dir/tools/dependencies/samtools") ? "$root_dir/tools/dependencies/samtools" : File::Which::which("samtools");
 	$global_opt{'bin'}->{'fastx'} = (-e "$root_dir/tools/dependencies/fastx_reverse_complement") ? "$root_dir/tools/dependencies/fastx_reverse_complement" : File::Which::which("fastx_reverse_complement");
+	$global_opt{'bin'}->{'quast'} = (-e "$root_dir/tools/QUAST/quast.py") ? "$root_dir/tools/QUAST/quast.py" : File::Which::which("quast.py");
+	$global_opt{'bin'}->{'reapr'} = (-e "$root_dir/tools/REAPR/reapr") ? "$root_dir/tools/REAPR/reapr" : File::Which::which("reapr");
 		
 	$global_opt{'pbsim'}->{'model_qc'} = (defined($global_opt{'bin'}->{'pbsim'})) ? dirname($global_opt{'bin'}->{'pbsim'})."/../data/model_qc_clr" : undef;
 
@@ -168,6 +167,7 @@ sub override_opt	{
 	(my $opt, my $global_opt, my $err_msg) = @_;
 	
 	foreach my $key (keys %{$opt})	{
+		next unless (defined($opt->{$key}));
 		if ($key =~ /\./)	{
 			my @key = split /\./, $key;
 			unless (exists $global_opt->{$key[0]}->{$key[1]}) { push @{$err_msg}, "\tThe option \"$key\" is unknown, please verify.\n"; }
@@ -214,8 +214,8 @@ sub read_global_ctrl_file	{
 					unless ($#library == 3) { push @err_msg, "\tConfiguration for the SE library $library[0] should have 4 elements.\n"; }
 					$opt{$opt}->{$library[0]}->{'depth'} = $library[2];
 					$opt{$opt}->{$library[0]}->{'read_length'} = $library[3];
-				}	elsif ($opt{$opt}->{$library[0]}->{'read_type'} =~ /^(pe|mp|hqmp)$/)	{
-					unless ($#library == 5) { push @err_msg, "\tConfiguration for the PE/MP/HQMP library $library[0] should have 6 elements.\n"; }
+				}	elsif ($opt{$opt}->{$library[0]}->{'read_type'} =~ /^(pe|mp)$/)	{
+					unless ($#library == 5) { push @err_msg, "\tConfiguration for the PE/MP library $library[0] should have 6 elements.\n"; }
 					$opt{$opt}->{$library[0]}->{'depth'} = $library[2];
 					$opt{$opt}->{$library[0]}->{'read_length'} = $library[3];
 					$opt{$opt}->{$library[0]}->{'frag_mean'} = $library[4];
@@ -291,25 +291,18 @@ sub check_global_opt	{
 		&default_protocol($global_opt);
 		push @warn_msg, "\tNo library or assembly protocol specified, continue with the default settings.\n";
 	}
+
 	# check evaluation settings
-	if (defined($global_opt->{'reapr'}->{'short'}) || defined($global_opt->{'reapr'}->{'long'}))	{
-		if (defined($global_opt->{'reapr'}->{'long'}))	{
-			# use REAPR if at least one "long" library is provided
-			unless (defined($global_opt->{'bin'}->{'reapr'}) && -e $global_opt->{'bin'}->{'reapr'}) { push @err_msg, "\tThe required genome assembly evaluation tool REAPR is not available.\n";}
-			&check_reapr($global_opt, "long", \@err_msg);
-			if (defined($global_opt->{'reapr'}->{'short'}))	{
-				&check_reapr($global_opt, "short", \@err_msg);
-			}
-		}	else	{
-			push @err_msg, "\tREAPR evaluation requires at least one \"long\" library.\n";
-		}
-	}	else	{
-		# use QUAST if no library is specified for REPAR 
-		unless (defined($global_opt->{'bin'}->{'quast'}) && -e $global_opt->{'bin'}->{'quast'}) { push @err_msg, "\tThe required genome assembly evaluation tool QUAST is not available.\n";}
-		unless ($global_opt->{'quast'}->{'eukaryote'} =~ /^[01]$/) { push @err_msg, "\tThe option \"QUAST.eukaryote\" should be either \"0\" or \"1\".\n"; }
-		unless ($global_opt->{'quast'}->{'gage'} =~ /^[01]$/) { push @err_msg, "\tThe option \"QUAST.gage\" should be either \"0\" or \"1\".\n"; }
-		unless (!defined($global_opt->{'quast'}->{'gene'}) || -e $global_opt->{'quast'}->{'gene'}) { push @err_msg, "\tThe gene annotation file for QUAST does not exist.\n"; }
+	if (defined($global_opt->{'reapr'}->{'libs'}))	{
+		unless (defined($global_opt->{'bin'}->{'reapr'}) && -e $global_opt->{'bin'}->{'reapr'}) { push @err_msg, "\tThe required genome assembly evaluation tool REAPR is not available.\n"; }
+		&check_reapr($global_opt, \@err_msg, \@warn_msg);
 	}
+		
+	# use QUAST if no library is specified for REPAR 
+	unless (defined($global_opt->{'bin'}->{'quast'}) && -e $global_opt->{'bin'}->{'quast'}) { push @err_msg, "\tThe required genome assembly evaluation tool QUAST is not available.\n"; }
+	unless ($global_opt->{'quast'}->{'eukaryote'} =~ /^[01]$/) { push @err_msg, "\tThe option \"QUAST.eukaryote\" should be either \"0\" or \"1\".\n"; }
+	unless ($global_opt->{'quast'}->{'gage'} =~ /^[01]$/) { push @err_msg, "\tThe option \"QUAST.gage\" should be either \"0\" or \"1\".\n"; }
+	unless (!defined($global_opt->{'quast'}->{'gene'}) || -e $global_opt->{'quast'}->{'gene'}) { push @err_msg, "\tThe gene annotation file for QUAST does not exist.\n"; }
 	
 	# if one or more warnings were detected, print out the message
 	if (@warn_msg)	{
@@ -444,13 +437,13 @@ sub check_libraries	{
 				# check the read length, must be greater than 0
 				unless (defined($libraries->{$library}->{'read_length'}) && $libraries->{$library}->{'read_length'} =~ /^\d+$/ && $libraries->{$library}->{'read_length'} > 0) { push @err_msg, "\t\tthe read length must be a positive integer.\n"; }
 				&check_library("art", $libraries->{$library}, $global_opt, \@err_msg, \@warn_msg);
-			}	elsif ($libraries->{$library}->{'read_type'} =~ /^(pe|mp|hqmp)$/)	{
+			}	elsif ($libraries->{$library}->{'read_type'} =~ /^(pe|mp)$/)	{
 				# check the average and standard deviation of insert size, must be greater than 0
 				unless (defined($libraries->{$library}->{'frag_mean'}) && $libraries->{$library}->{'frag_mean'} =~ /^\d+$/ && $libraries->{$library}->{'frag_mean'} > 0) { push @err_msg, "\t\tthe average insert size should be a positive number.\n"; }
 				if ($libraries->{$library}->{'read_type'} eq "pe" && $libraries->{$library}->{'frag_mean'} >= 2000)	{
 					push @err_msg, "\t\tthe mean fragment size of a PE library should be smaller than 2kbp.\n";
-				}	elsif ($libraries->{$library}->{'read_type'} =~ /^(mp|hqmp)$/ && $libraries->{$library}->{'frag_mean'} < 2000)	{
-					push @err_msg, "\t\tthe mean fragment size of a (HQ)MP library should not be smaller than 2kbp.\n";
+				}	elsif ($libraries->{$library}->{'read_type'} eq 'mp' && $libraries->{$library}->{'frag_mean'} < 2000)	{
+					push @err_msg, "\t\tthe mean fragment size of a MP library should not be smaller than 2kbp.\n";
 				}
 				# check the standard deviation of insert size, must be greater than 0
 				unless (defined($libraries->{$library}->{'frag_sd'}) && $libraries->{$library}->{'frag_sd'} =~ /^\d+$/) { push @err_msg, "\t\tthe standard deviation of insert size should be a number no less than zero.\n"; }
@@ -611,7 +604,7 @@ sub check_library	{
 		}
 		if ($library->{'tm-on'})	{
 			unless ($library->{'tm-on'} =~ /^[01]$/) { push @{$err_msg}, "\t\tthe Trimmomatic on/off switch should be either \"0\" or \"1\".\n"; }
-			if ($library->{'read_type'} =~ /^(se|pe|mp|hqmp)$/)	{
+			if ($library->{'read_type'} =~ /^(se|pe|mp)$/)	{
 				unless (defined($global_opt->{'bin'}->{'trimmomatic'}) && -e $global_opt->{'bin'}->{'trimmomatic'}) { push @{$err_msg}, "\t\tthe required quality control tool Trimmomatic is not available.\n"; }
 				unless (!defined($library->{'tm-trailing'}) || $library->{'tm-trailing'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe threshold of Trimmomatic quality-based trimming should be an integer no less than zero.\n"; }
 				unless (!defined($library->{'tm-minlen'}) || $library->{'tm-minlen'} =~ /^\d+$/) { push @{$err_msg}, "\t\tthe minimum read length after Trimmomatic trimming should be an integer no less than zero.\n"; }
@@ -635,7 +628,7 @@ sub check_library	{
 			if ($library->{'read_type'} eq "mp" && !$library->{'nc-on'})	{
 				push @{$err_msg}, "\t\tthe error correction can be performed on a MP library only if it is processed by NextClip.\n";
 			}
-			if ($library->{'read_type'} =~ /^(se|pe|mp|hqmp)$/)	{
+			if ($library->{'read_type'} =~ /^(se|pe|mp)$/)	{
 				if (defined($global_opt->{'correction'}->{'tool'}))	{
 					$global_opt->{'correction'}->{'tool'} = lc($global_opt->{'correction'}->{'tool'});
 				}
@@ -986,22 +979,42 @@ sub default_protocol	{
 # check libraries for REAPR evaluation
 #############################
 sub check_reapr	{
-	(my $global_opt, my $type, my $err_msg) = @_;
+	(my $global_opt, my $err_msg, my $warn_msg) = @_;
 
-	my @library = split /\,/, $global_opt->{'reapr'}->{$type};
+	my @library = split /\,/, $global_opt->{'reapr'}->{'libs'};
+	my %read_type;
 	foreach my $library (@library)	{
 		unless (defined($global_opt->{'library'}->{$library}))	{
 			push @{$err_msg}, "\tThe library $library for REPAR evaluation is invalid!\n";
 		}
 		my $read_type = $global_opt->{'library'}->{$library}->{'read_type'};
-		unless ($read_type =~ /^(pe|mp|hqmp)$/)	{
-			push @{$err_msg}, "\t$library is a $read_type library, only PE/(HQ)MP libraries can be used for REAPR evaluation!\n";
+		unless ($read_type eq 'pe' || $read_type eq 'mp')	{
+			push @{$err_msg}, "\t$library is a $read_type library; only PE/MP libraries can be used for REAPR evaluation!\n";
 		}
-		if ($type eq "short")	{
-			if ($read_type eq "mp" && !($global_opt->{'library'}->{$library}->{'nc-on'}))	{
-				push @{$err_msg}, "\t$library is a MP library and can only be used as a \"short\" library for REAPR evaluation after NextClip trimming!\n";
+		push @{$read_type{$read_type}}, $library;
+	}
+
+	if (%read_type)	{
+		# check the number of PE and MP libraries; only one is allowed for each type
+		foreach my $read_type (sort keys %read_type)	{
+			unless ($#{$read_type{$read_type}} == 0)	{
+				push @{$err_msg}, "\t".(scalar @{$read_type{$read_type}})." ".(uc($read_type))." libraries are selected, but at most one can be used for REAPR evaluation!\n";
 			}
 		}
+		# set short and long insert libraries for REAPR evaluation
+		if (defined($read_type{'pe'}))	{
+			$global_opt->{'reapr'}->{'short'} = $read_type{'pe'}->[0];
+			if (defined($read_type{'mp'}))	{
+				$global_opt->{'reapr'}->{'long'} = $read_type{'mp'}->[0];
+			}	else	{
+				push @{$warn_msg}, "\tREAPR evaluation will be carried out using one PE library only!\n";
+			}
+		}	else	{
+			$global_opt->{'reapr'}->{'long'} = $read_type{'mp'}->[0];
+			push @{$warn_msg}, "\tREAPR evaluation will be carried out using one MP library only!\n";
+		}
+	}	else	{
+		push @{$err_msg}, "\tat least one PE or MP library is required for REAPR evaluation!\n";
 	}
 	
 	return;
@@ -1075,8 +1088,8 @@ sub read_conf_file	{
 		"gene" => "quast",
 		"short" => "reapr",
 		"long" => "reapr",
-		"pirs" => "bin",
 		"art" => "bin",
+		"pirs" => "bin",
 		"pbsim" => "bin",
 		"trimmomatic" => "bin",
 		"nextclip" => "bin",
@@ -1087,23 +1100,24 @@ sub read_conf_file	{
 		"allpaths" => "bin",
 		"pbcr" => "bin",
 		"runca" => "bin",
+		"blasr" => "bin",
+		"pbdagcon" => "bin",
+		"bank-transact" => "bin",
 		"discovar" => "bin",
 		"masurca" => "bin",
 		"minia" => "bin",
 		"platanus" => "bin",
+		"sga" => 'bin',
+		"bwa" => "bin",
+		"samtools" => "bin",
 		"soapdenovo2" => "bin",
 		"spades" => "bin",
 		"dipspades" => "bin",
 		"velvetg" => "bin",
 		"velveth" => "bin",
+		"fastx" => "bin",
 		"quast" => "bin",
 		"reapr" => "bin",
-		"bank-transact" => "bin",
-		"blasr" => "bin",
-		"bwa" => "bin",
-		"pbdagcon" => "bin",
-		"samtools" => "bin",
-		"fastx" => "bin",
 		"genome" => 1,
 		"genome_size" => 1,
 		"threads" => 1,
@@ -1206,7 +1220,8 @@ sub write_conf_file	{
 			push @conf, $library.".qual_profile1 = ".(defined($global_opt->{'art'}->{'qual_profile1'}) ? $global_opt->{'art'}->{'qual_profile1'} : " ")."\n";
 			push @conf, $library.".ins_rate1 = $global_opt->{'art'}->{'ins_rate1'}\n";
 			push @conf, $library.".del_rate1 = $global_opt->{'art'}->{'del_rate1'}\n";
-		}	elsif ($global_opt->{'library'}->{$library}->{'read_length'} > 100)	{
+		#}	elsif ($global_opt->{'library'}->{$library}->{'read_length'} > 100)	{
+		}	else	{
 			push @conf, $library.".simulator = ART\n";
 			push @conf, $library.".read_length = $global_opt->{'library'}->{$library}->{'read_length'}\n";
 			push @conf, $library.".frag_mean = $global_opt->{'library'}->{$library}->{'frag_mean'}\n";
@@ -1219,6 +1234,7 @@ sub write_conf_file	{
 			push @conf, $library.".ins_rate2 = $global_opt->{'art'}->{'ins_rate2'}\n";
 			push @conf, $library.".del_rate1 = $global_opt->{'art'}->{'del_rate1'}\n";
 			push @conf, $library.".del_rate2 = $global_opt->{'art'}->{'del_rate2'}\n";
+=item
 		}	else	{
 			push @conf, $library.".simulator = pIRS\n";
 			push @conf, $library.".read_length = $global_opt->{'library'}->{$library}->{'read_length'}\n";
@@ -1230,6 +1246,7 @@ sub write_conf_file	{
 			push @conf, $library.".gc_profile = ".(defined($global_opt->{'pirs'}->{'gc_profile'}) ? $global_opt->{'pirs'}->{'gc_profile'} : " ")."\n";
 			push @conf, $library.".indel = $global_opt->{'pirs'}->{'indel'}\n";
 			push @conf, $library.".indel_profile = ".(defined($global_opt->{'pirs'}->{'indel_profile'}) ? $global_opt->{'pirs'}->{'indel_profile'} : " ")."\n";
+=cut
 		}
 		
 		# write QC settings
@@ -1336,10 +1353,12 @@ sub write_conf_file	{
 	push @conf, "QUAST.eukaryote = $global_opt->{'quast'}->{'eukaryote'}\n";
 	push @conf, "QUAST.gage = $global_opt->{'quast'}->{'gage'}\n";
 	push @conf, "QUAST.gene = ".(defined($global_opt->{'quast'}->{'gene'}) ? $global_opt->{'quast'}->{'gene'} : " ")."\n";
+	push @conf, "REAPR.short = ".(defined($global_opt->{'reapr'}->{'short'}) ? $global_opt->{'reapr'}->{'short'} : " ")."\n";
+	push @conf, "REAPR.long = ".(defined($global_opt->{'reapr'}->{'long'}) ? $global_opt->{'reapr'}->{'long'} : " ")."\n";
 	# Paths to executables
 	push @conf, "\n#############################\n# Executable options\n#############################\n";
-	push @conf, "bin.pIRS = ".(defined($global_opt->{'bin'}->{'pirs'}) ? $global_opt->{'bin'}->{'pirs'} : " ")."\n";
 	push @conf, "bin.ART = ".(defined($global_opt->{'bin'}->{'art'}) ? $global_opt->{'bin'}->{'art'} : " ")."\n";
+	push @conf, "bin.pIRS = ".(defined($global_opt->{'bin'}->{'pirs'}) ? $global_opt->{'bin'}->{'pirs'} : " ")."\n";
 	push @conf, "bin.PBSIM = ".(defined($global_opt->{'bin'}->{'pbsim'}) ? $global_opt->{'bin'}->{'pbsim'} : " ")."\n";
 	push @conf, "bin.Trimmomatic = ".(defined($global_opt->{'bin'}->{'trimmomatic'}) ? $global_opt->{'bin'}->{'trimmomatic'} : " ")."\n";
 	push @conf, "bin.NextClip = ".(defined($global_opt->{'bin'}->{'nextclip'}) ? $global_opt->{'bin'}->{'nextclip'} : " ")."\n";
@@ -1350,23 +1369,24 @@ sub write_conf_file	{
 	push @conf, "bin.ALLPATHS = ".(defined($global_opt->{'bin'}->{'allpaths'}) ? $global_opt->{'bin'}->{'allpaths'} : " ")."\n";
 	push @conf, "bin.PBcR = ".(defined($global_opt->{'bin'}->{'pbcr'}) ? $global_opt->{'bin'}->{'pbcr'} : " ")."\n";
 	push @conf, "bin.runCA = ".(defined($global_opt->{'bin'}->{'runca'}) ? $global_opt->{'bin'}->{'runca'} : " ")."\n";
+	push @conf, "bin.BLASR = ".(defined($global_opt->{'bin'}->{'blasr'}) ? $global_opt->{'bin'}->{'blasr'} : " ")."\n";
+	push @conf, "bin.PDBAGCON = ".(defined($global_opt->{'bin'}->{'pbdagcon'}) ? $global_opt->{'bin'}->{'pbdagcon'} : " ")."\n";
+	push @conf, "bin.bank-transact = ".(defined($global_opt->{'bin'}->{'bank-transact'}) ? $global_opt->{'bin'}->{'bank-transact'} : " ")."\n";
 	push @conf, "bin.DISCOVAR = ".(defined($global_opt->{'bin'}->{'discovar'}) ? $global_opt->{'bin'}->{'discovar'} : " ")."\n";
 	push @conf, "bin.MaSuRCA = ".(defined($global_opt->{'bin'}->{'masurca'}) ? $global_opt->{'bin'}->{'masurca'} : " ")."\n";
 	push @conf, "bin.Minia = ".(defined($global_opt->{'bin'}->{'minia'}) ? $global_opt->{'bin'}->{'minia'} : " ")."\n";
 	push @conf, "bin.Planatus = ".(defined($global_opt->{'bin'}->{'planatus'}) ? $global_opt->{'bin'}->{'planatus'} : " ")."\n";
 	push @conf, "bin.SGA = ".(defined($global_opt->{'bin'}->{'sga'}) ? $global_opt->{'bin'}->{'sga'} : " ")."\n";
+	push @conf, "bin.BWA = ".(defined($global_opt->{'bin'}->{'bwa'}) ? $global_opt->{'bin'}->{'bwa'} : " ")."\n";
+	push @conf, "bin.SAMtools = ".(defined($global_opt->{'bin'}->{'samtools'}) ? $global_opt->{'bin'}->{'samtools'} : " ")."\n";
 	push @conf, "bin.SOAPdenovo2 = ".(defined($global_opt->{'bin'}->{'soapdenovo2'}) ? $global_opt->{'bin'}->{'soapdenovo2'} : " ")."\n";
 	push @conf, "bin.SPAdes = ".(defined($global_opt->{'bin'}->{'spades'}) ? $global_opt->{'bin'}->{'spades'} : " ")."\n";
 	push @conf, "bin.dipSPAdes = ".(defined($global_opt->{'bin'}->{'dipspades'}) ? $global_opt->{'bin'}->{'dipspades'} : " ")."\n";
 	push @conf, "bin.velvetg = ".(defined($global_opt->{'bin'}->{'velvetg'}) ? $global_opt->{'bin'}->{'velvetg'} : " ")."\n";
 	push @conf, "bin.velveth = ".(defined($global_opt->{'bin'}->{'velveth'}) ? $global_opt->{'bin'}->{'velveth'} : " ")."\n";
-	push @conf, "bin.QUAST = ".(defined($global_opt->{'bin'}->{'quast'}) ? $global_opt->{'bin'}->{'quast'} : " ")."\n";
-	push @conf, "bin.bank-transact = ".(defined($global_opt->{'bin'}->{'bank-transact'}) ? $global_opt->{'bin'}->{'bank-transact'} : " ")."\n";
-	push @conf, "bin.BLASR = ".(defined($global_opt->{'bin'}->{'blasr'}) ? $global_opt->{'bin'}->{'blasr'} : " ")."\n";
-	push @conf, "bin.BWA = ".(defined($global_opt->{'bin'}->{'bwa'}) ? $global_opt->{'bin'}->{'bwa'} : " ")."\n";
-	push @conf, "bin.PDBAGCON = ".(defined($global_opt->{'bin'}->{'pbdagcon'}) ? $global_opt->{'bin'}->{'pbdagcon'} : " ")."\n";
-	push @conf, "bin.SAMtools = ".(defined($global_opt->{'bin'}->{'samtools'}) ? $global_opt->{'bin'}->{'samtools'} : " ")."\n";
 	push @conf, "bin.FASTX = ".(defined($global_opt->{'bin'}->{'fastx'}) ? $global_opt->{'bin'}->{'fastx'} : " ")."\n";
+	push @conf, "bin.QUAST = ".(defined($global_opt->{'bin'}->{'quast'}) ? $global_opt->{'bin'}->{'quast'} : " ")."\n";
+	push @conf, "bin.REAPR = ".(defined($global_opt->{'bin'}->{'reapr'}) ? $global_opt->{'bin'}->{'reapr'} : " ")."\n";
 	# Paths to other necessary files
 	push @conf, "pricing_info = ".(defined($global_opt->{'pricing_info'}) ? $global_opt->{'pricing_info'} : " ")."\n";
 	push @conf, "custom_weight = ".(defined($global_opt->{'custom_weight'}) ? $global_opt->{'custom_weight'} : " ")."\n";

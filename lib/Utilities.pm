@@ -2,7 +2,6 @@ package Utilities;
 
 use strict;
 use warnings;
-use Math::Round;
 
 #############################
 # execute system command
@@ -95,11 +94,11 @@ sub calculate_price	{
 		open COST, "> $global_opt->{'out_dir'}/total_cost.txt" or die "Can't write to total_cost.txt!";
 		print COST "#Cost for each library:\n";
 		foreach my $library (sort keys %library_price)	{
-			print COST "$library\t".(nearest(0.01, $library_price{$library}))."\n";
+			print COST "$library\t".(int($library_price{$library}*100+0.5)/100)."\n";
 		}
 		print COST "\n#Cost for each assembly protocol:\n";
 		foreach my $protocol (sort keys %protocol_price)	{
-			print COST "$protocol\t".(nearest(0.01, $protocol_price{$protocol}))."\n";
+			print COST "$protocol\t".(int($protocol_price{$protocol}*100+0.5)/100)."\n";
 		}
 		close (COST);
 	
@@ -287,7 +286,7 @@ sub validate_price	{
 # rank the genome assembly
 #############################
 sub rank_assembly {
-	(my $type, my $global_opt, my $gage, my $ref) = @_;
+	(my $eval_dir, my $type, my $global_opt, my $gage, my $ref) = @_;
 	
 	my @warn_msg;
 
@@ -298,13 +297,13 @@ sub rank_assembly {
 	my %special_metric = &special_metric($gage);
 
 	# read and process QUAST reports
-	my $report = ($gage) ? "$global_opt->{'out_dir'}/evaluation/$type\_QUAST/gage_report.tsv" : "$global_opt->{'out_dir'}/evaluation/$type\_QUAST/report.tsv";
+	my $report = ($gage) ? "$global_opt->{'out_dir'}/$eval_dir/$type\_QUAST/gage_report.tsv" : "$global_opt->{'out_dir'}/$eval_dir/$type\_QUAST/report.tsv";
 	my %report;
 	open REPORT, "< $report" or die "Can't open $report!\n";
 	while (<REPORT>)	{
 		chomp;
 		my @metric = split /\t/;
-		my $metric = shift @metric;
+		(my $metric = shift @metric) =~ s/\s+\(\%\)//;
 		if (defined($special_metric{$metric}))	{
 			foreach my $n (0..$#metric)	{
 				if ($special_metric{$metric} eq "count")	{
@@ -336,9 +335,9 @@ sub rank_assembly {
 	}
 
 	# process GC content metric if necessary
-	if (defined($report{'GC (%)'}))	{
-		foreach my $n (0..$#{$report{'GC (%)'}})	{
-			$report{'GC (%)'}->[$n] = abs($report{'GC (%)'}->[$n] - $report{'Reference GC (%)'});
+	if (defined($report{'GC'}))	{
+		foreach my $n (0..$#{$report{'GC'}})	{
+			$report{'GC'}->[$n] = abs($report{'GC'}->[$n] - $report{'Reference GC'});
 		}
 	}
 	
@@ -361,6 +360,9 @@ sub rank_assembly {
 			my @metric = sort {$a<=>$b} @{$report{$metric}};
 			foreach my $n (0..$#{$report{$metric}})	{
 				# calculate metric score
+				
+=item
+				# original recipe
 				if ($criteria->{$metric} eq "min")	{
 					if ($metric[0] == 0)	{
 						my $pseudo_count = ($metric[-1] =~ /\./) ? 0.01 : 1;
@@ -375,6 +377,23 @@ sub rank_assembly {
 						$metric_score{$metric}->[$n] = $report{$metric}->[$n]/$metric[-1];
 					}
 				}
+=cut
+				
+				# RAMPART recipe
+				if ($criteria->{$metric} eq "min")	{
+					if ($metric[0] == $metric[-1])	{
+						$metric_score{$metric}->[$n] = 1;
+					}	else	{
+						$metric_score{$metric}->[$n] = 1 - ($report{$metric}->[$n]-$metric[0])/($metric[-1]-$metric[0]);
+					}
+				}	elsif ($criteria->{$metric} eq "max")	{
+					if ($metric[0] == $metric[-1])	{
+						$metric_score{$metric}->[$n] = 1;
+					}	else	{
+						$metric_score{$metric}->[$n] = ($report{$metric}->[$n]-$metric[0])/($metric[-1]-$metric[0]);
+					}
+				}
+
 			}
 		}
 		# caculate group score
@@ -405,7 +424,7 @@ sub rank_assembly {
 	}
 
 	# generate output
-	open RANK, "> $global_opt->{'out_dir'}/evaluation/$type.rank.txt" or die "Can't write to $type.rank.txt!\n";
+	open RANK, "> $global_opt->{'out_dir'}/$eval_dir/$type.rank.txt" or die "Can't write to $type.rank.txt!\n";
 	print RANK "Assembly\t".(join "\t", @protocol)."\n";
 	# print metric score
 	print RANK "\n#####Metric Score#####\n";
@@ -413,7 +432,7 @@ sub rank_assembly {
 		foreach my $metric (sort keys %{$weight->{$group}->{'member'}})	{
 			print RANK "$metric";
 			foreach my $metric_score (@{$metric_score{$metric}})	{
-				print RANK "\t".(nearest(0.01, $metric_score));
+				print RANK "\t".(int($metric_score*100+0.5)/100);
 			}
 			print RANK "\n";
 		}
@@ -422,7 +441,7 @@ sub rank_assembly {
 	foreach my $group (sort keys %{$weight})	{
 		print RANK "$group";
 		foreach my $group_score (@{$group_score{$group}})	{
-			print RANK "\t".(nearest(0.01, $group_score));
+			print RANK "\t".(int($group_score*100+0.5)/100);
 		}
 		print RANK "\n";
 	}
@@ -459,7 +478,7 @@ sub init_weight {
 			"Duplicated reference bases" => "min",
 			"Compressed reference bases" => "min",
 			"Bad trim" => "min",
-			"Avg idy" => "min",
+			"Avg idy" => "max",
 			"SNPs" => "min",
 			"Indels < 5bp" => "min",
 			"Indels >= 5" => "min",
@@ -467,7 +486,7 @@ sub init_weight {
 			"Relocation" => "min",
 			"Translocation" => "min",
 			"# misassemblies" => "min",
-			"Corrected contig #" => "max",
+			"Corrected contig #" => "min",
 			"Corrected assembly size" => "max",
 			"Min correct contig" => "max",
 			"Max correct contig" => "max",
@@ -483,7 +502,7 @@ sub init_weight {
 			"# contigs" => "min",
 			"Largest contig" => "max",
 			"Total length" => "max",
-			"GC (%)" => "min",
+			"GC" => "min",
 			"N50" => "max",
 			"NG50" => "max",
 			"N75" => "max",
@@ -498,7 +517,7 @@ sub init_weight {
 			"# local misassemblies" => "min",
 			"# unaligned contigs" => "min",
 			"Unaligned length" => "min",
-			"Genome fraction (%)" => "max",
+			"Genome fraction" => "max",
 			"Duplication ratio" => "min",
 			"# N's per 100 kbp" => "min",
 			"# mismatches per 100 kbp" => "min",
@@ -523,7 +542,7 @@ sub init_weight {
 			"# contigs" => "min",
 			"Largest contig" => "max",
 			"Total length" => "max",
-			"GC (%)" => "min",
+			"GC" => "min",
 			"N50" => "max",
 			"N75" => "max",
 			"L50" => "min",

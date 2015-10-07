@@ -1,3 +1,8 @@
+Version 1.0	2015/10/05
+	- added support for REAPR evaluation
+	- added a script to get third-party tools
+	- updated manual and test data set
+
 Version 0.96	2015/07/20
 	- bug fixes
 
@@ -16,7 +21,7 @@ Version 0.9	2015/02/16
 	natively
 
 Version 0.8	2014/11/23
-	- added the "HMP" (High-quality Mate-Pair) read type
+	- added the "HQMP" (High-Quality Mate-Pair) read type
 	- various code modifications
 
 Version 0.7	2014/11/20
