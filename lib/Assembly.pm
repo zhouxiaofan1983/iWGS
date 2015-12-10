@@ -1342,7 +1342,7 @@ sub quast	{
 		print "Starts QUAST evalution of assembled $type:\t".localtime()."\n";
 		my @assemblies = glob "$global_opt->{'out_dir'}/$mode/*.$type.fa";
 		if (@assemblies)	{
-			my $cmd = "$global_opt->{'bin'}->{'quast'} -t $global_opt->{'threads'} -o $global_opt->{'out_dir'}/$eval_dir/$type\_QUAST";
+			my $cmd = "$global_opt->{'bin'}->{'quast'} --fast -t $global_opt->{'threads'} -o $global_opt->{'out_dir'}/$eval_dir/$type\_QUAST";
 			# determine if the "eukaryote" option should be turned on
 			if ($global_opt->{'quast'}->{'eukaryote'})	{
 				$cmd .= " --eukaryote";
@@ -1450,7 +1450,7 @@ sub reapr	{
 					next;
 				}	else	{
 					if (-d "$protocol.$type")	{ system("rm -rf $protocol.$type"); }
-					print "Found the $type assembly for protocol $protocol, performing REPAR correction:\n";
+					print "Found the $type assembly for protocol $protocol, performing REAPR correction:\n";
 				}
 
 				# REAPR evaluation consists of three steps:

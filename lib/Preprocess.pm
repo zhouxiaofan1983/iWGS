@@ -440,7 +440,7 @@ sub lighter	{
 			system("mv $library\_1.cor.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.cor.fq");
 			system("mv $library\_2.cor.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.cor.fq");
 			if (-s "$library.cor.fq")	{
-				system("$library.cor.fq $global_opt->{'out_dir'}/preprocessed/$library/$library.cor.fq");
+				system("mv $library.cor.fq $global_opt->{'out_dir'}/preprocessed/$library/$library.cor.fq");
 			}
 			$lib_opt->{'qc'} = "correction";
 			print "\tLighter error correction finished.\n";

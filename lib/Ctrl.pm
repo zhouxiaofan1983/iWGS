@@ -201,7 +201,8 @@ sub read_global_ctrl_file	{
 			my $opt = lc($1);
 			my $value = $2;
 			next unless ($value =~ /\S/);
-			$value =~ s/^\s+|\s+$//g;
+			#$value =~ s/^\s+|\s+$//g;
+			$value =~ s/\s//g;
 			if ($opt eq "library")	{
 				my @library = split /\,/, $value;
 				$opt{$opt}->{$library[0]}->{'read_type'} = lc($library[1]);
@@ -1007,6 +1008,7 @@ sub check_reapr	{
 			if (defined($read_type{'mp'}))	{
 				$global_opt->{'reapr'}->{'long'} = $read_type{'mp'}->[0];
 			}	else	{
+				$global_opt->{'reapr'}->{'long'} = $read_type{'pe'}->[0];
 				push @{$warn_msg}, "\tREAPR evaluation will be carried out using one PE library only!\n";
 			}
 		}	else	{
