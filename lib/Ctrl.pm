@@ -81,6 +81,10 @@ sub init_global_opt	{
 		"masurca" => {
 			"kmer" => 0,
 		},
+		"meraculous" => {
+			"kmer" => 0,
+			"diploid" => 0,
+		},
 		"minia" => {
 			"kmer" => 0,
 			"min-abundance" => 0,
@@ -140,6 +144,7 @@ sub init_global_opt	{
 	$global_opt{'bin'}->{'bank-transact'} = (-e "$root_dir/tools/dependencies/bank-transact") ? "$root_dir/tools/dependencies/bank-transact" : File::Which::which("bank-transact");
 	$global_opt{'bin'}->{'discovar'} = (-e "$root_dir/tools/DISCOVAR/bin/DiscovarDeNovo") ? "$root_dir/tools/DISCOVAR/bin/DiscovarDeNovo" : File::Which::which("DiscovarDeNovo");
 	$global_opt{'bin'}->{'masurca'} = (-e "$root_dir/tools/MaSuRCA/bin/masurca") ? "$root_dir/tools/MaSuRCA/bin/masurca" : File::Which::which("masurca");
+	$global_opt{'bin'}->{'meraculous'} = (-e "$root_dir/tools/Meraculous/bin/run_meraculous.sh") ? "$root_dir/tools/Meraculous/bin/run_meraculous.sh" : File::Which::which("run_meraculous.sh");
 	$global_opt{'bin'}->{'minia'} = (-e "$root_dir/tools/Minia/bin/minia") ? "$root_dir/tools/Minia/bin/minia" : File::Which::which("minia");
 	$global_opt{'bin'}->{'platanus'} = (-e "$root_dir/tools/Platanus/platanus") ? "$root_dir/tools/Platanus/platanus" : File::Which::which("platanus");
 	$global_opt{'bin'}->{'sga'} = (-e "$root_dir/tools/SGA/bin/sga") ? "$root_dir/tools/SGA/bin/sga" : File::Which::which("sga");
@@ -201,8 +206,11 @@ sub read_global_ctrl_file	{
 			my $opt = lc($1);
 			my $value = $2;
 			next unless ($value =~ /\S/);
-			#$value =~ s/^\s+|\s+$//g;
-			$value =~ s/\s//g;
+			if ($opt =~ /option$/)	{
+				$value =~ s/^\s+|\s+$//g;
+			}	else	{
+				$value =~ s/\s//g;
+			}
 			if ($opt eq "library")	{
 				my @library = split /\,/, $value;
 				$opt{$opt}->{$library[0]}->{'read_type'} = lc($library[1]);
@@ -671,6 +679,7 @@ sub check_protocols	{
 		"ca" => "Celera Assembler",
 		"discovar" => "DISCOVAR de novo",
 		"masurca" => "MaSuRCA",
+		"meraculous" => "Meraculous",
 		"minia" => "Minia",
 		"platanus" => "Platanus",
 		"sga" => "SGA",
@@ -682,6 +691,7 @@ sub check_protocols	{
 	# set assemblers that would invoke kmergenie
 	my %kmergenie = (
 		"abyss" => 1,
+		#"meraculous" => 1,
 		"minia" => 1,
 		"soapdenovo2" => 1,
 		"spades" => 1,
@@ -732,6 +742,9 @@ sub check_protocols	{
 			unless ($protocols->{$protocol}->{'sensitive'} =~ /^[01]$/) { push @err_msg, "\t\tthe option \"sensitive\" should be either \"0\" or \"1\".\n"; }
 		}	elsif ($assembler eq "masurca")	{
 			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/ && ($protocols->{$protocol}->{'kmer'} == 0 || $protocols->{$protocol}->{'kmer'}%2 == 1)) { push @err_msg, "\t\tthe option \"kmer\" should be \"0\" or an odd number.\n"; }
+		}	elsif ($assembler eq "meraculous")	{
+			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/ && ($protocols->{$protocol}->{'kmer'} == 0 || $protocols->{$protocol}->{'kmer'}%2 == 1)) { push @err_msg, "\t\tthe option \"kmer\" should be \"0\" or an odd number.\n"; }
+			unless ($protocols->{$protocol}->{'diploid'} =~ /^[01]$/) { push @err_msg, "\t\tthe option \"diploid\" should be either 0 or 1.\n"; }
 		}	elsif ($assembler eq "minia")	{
 			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/ && ($protocols->{$protocol}->{'kmer'} == 0 || $protocols->{$protocol}->{'kmer'}%2 == 1)) { push @err_msg, "\t\tthe option \"kmer\" should be \"0\" or an odd number.\n"; }
 			unless ($protocols->{$protocol}->{'min-abundance'} =~ /^\d+$/) { push @err_msg, "\t\tthe option \"min-abundance\" should be an integer no less than zero.\n"; }
@@ -855,6 +868,16 @@ sub check_compatibility	{
 			}
 			if (exists $read_type{'clr'})	{
 				push @err_msg, "\t\tMaSuRCA is not compatible with PacBio reads.\n";
+			}
+		}	elsif ($protocols->{$protocol}->{'assembler'} eq "meraculous")	{	# a SOAPdenovo2 protocol should have at least one PE/HQMP library, and no PacBio library
+			unless (exists $read_type{'pe'} || exists $read_type{'hqmp'})	{
+				push @err_msg, "\t\tMeraculous requires at least one PE/HQMP library.\n";
+			}
+			if (exists $read_type{'se'})	{
+				push @err_msg, "\t\tMeraculous is not compatible with SE reads.\n";
+			}
+			if (exists $read_type{'clr'})	{
+				push @err_msg, "\t\tMeraculous is not compatible with PacBio reads.\n";
 			}
 		}	elsif ($protocols->{$protocol}->{'assembler'} eq "minia")	{	# a MaSuRCA protocol should have at least one SE/PE/HQMP library, and no MP/PacBio library
 			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hqmp'})	{
@@ -1012,11 +1035,14 @@ sub check_reapr	{
 				push @{$warn_msg}, "\tREAPR evaluation will be carried out using one PE library only!\n";
 			}
 		}	else	{
+=item
 			$global_opt->{'reapr'}->{'long'} = $read_type{'mp'}->[0];
 			push @{$warn_msg}, "\tREAPR evaluation will be carried out using one MP library only!\n";
+=cut
+			push @{$err_msg}, "\tat least one PE library is required for REAPR evaluation!\n";
 		}
 	}	else	{
-		push @{$err_msg}, "\tat least one PE or MP library is required for REAPR evaluation!\n";
+		push @{$err_msg}, "\tat least one PE library is required for REAPR evaluation!\n";
 	}
 	
 	return;
@@ -1082,6 +1108,7 @@ sub read_conf_file	{
 		"option" => "protocol",
 		"pbcns" => "protocol",
 		"sensitive" => "protocol",
+		"diploid" => "protocol",
 		"ploidy" => "protocol",
 		"min-overlap" => "protocol",
 		"assemble-overlap" => "protocol",
@@ -1107,6 +1134,7 @@ sub read_conf_file	{
 		"bank-transact" => "bin",
 		"discovar" => "bin",
 		"masurca" => "bin",
+		"meraculous" => "bin",
 		"minia" => "bin",
 		"platanus" => "bin",
 		"sga" => 'bin',
@@ -1304,6 +1332,10 @@ sub write_conf_file	{
 		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "masurca")	{
 			push @conf, $protocol.".assembler = MaSuRCA\n";
 			push @conf, $protocol.".kmer = $global_opt->{'protocol'}->{$protocol}->{'kmer'}\n";
+		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "meraculous")	{
+			push @conf, $protocol.".assembler = Meraculous\n";
+			push @conf, $protocol.".kmer = $global_opt->{'protocol'}->{$protocol}->{'kmer'}\n";
+			push @conf, $protocol.".diploid = $global_opt->{'protocol'}->{$protocol}->{'diploid'}\n";
 		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "minia")	{
 			push @conf, $protocol.".assembler = Minia\n";
 			push @conf, $protocol.".kmer = $global_opt->{'protocol'}->{$protocol}->{'kmer'}\n";
@@ -1376,6 +1408,7 @@ sub write_conf_file	{
 	push @conf, "bin.bank-transact = ".(defined($global_opt->{'bin'}->{'bank-transact'}) ? $global_opt->{'bin'}->{'bank-transact'} : " ")."\n";
 	push @conf, "bin.DISCOVAR = ".(defined($global_opt->{'bin'}->{'discovar'}) ? $global_opt->{'bin'}->{'discovar'} : " ")."\n";
 	push @conf, "bin.MaSuRCA = ".(defined($global_opt->{'bin'}->{'masurca'}) ? $global_opt->{'bin'}->{'masurca'} : " ")."\n";
+	push @conf, "bin.Meraculous = ".(defined($global_opt->{'bin'}->{'meraculous'}) ? $global_opt->{'bin'}->{'meraculous'} : " ")."\n";
 	push @conf, "bin.Minia = ".(defined($global_opt->{'bin'}->{'minia'}) ? $global_opt->{'bin'}->{'minia'} : " ")."\n";
 	push @conf, "bin.Planatus = ".(defined($global_opt->{'bin'}->{'planatus'}) ? $global_opt->{'bin'}->{'planatus'} : " ")."\n";
 	push @conf, "bin.SGA = ".(defined($global_opt->{'bin'}->{'sga'}) ? $global_opt->{'bin'}->{'sga'} : " ")."\n";

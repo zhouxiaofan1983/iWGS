@@ -36,6 +36,8 @@ sub assemble	{
 		&discovar($protocol, $global_opt);
 	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "masurca")	{
 		&masurca($protocol, $global_opt);
+	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "meraculous")	{
+		&meraculous($protocol, $global_opt);
 	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "minia")	{
 		&minia($protocol, $global_opt);
 	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "platanus")	{
@@ -163,7 +165,7 @@ sub allpaths	{
 	
 	# preapre the data
 	mkdir("mydata");
-	my $preapre_bin = dirname($global_opt->{'bin'}->{'allpaths'})."/PreapreAllPathsInputs.pl";
+	my $preapre_bin = dirname($global_opt->{'bin'}->{'allpaths'})."/PrepareAllPathsInputs.pl";
 	my $cmd = "$preapre_bin DATA_DIR=$global_opt->{'out_dir'}/protocols/$protocol/mydata PLOIDY=$global_opt->{'protocol'}->{$protocol}->{'ploidy'}";
 	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
 
@@ -424,6 +426,86 @@ sub masurca	{
 	return;
 }
 
+sub meraculous	{
+	(my $protocol, my $global_opt) = @_;
+			
+	print "Starts the assembly protocol $protocol:\t".localtime()."\n";
+	
+	# set libraries
+	my %data = &data($protocol, $global_opt, 0, 1, 0, 1);
+	my $max_rd_len = 0;
+	foreach my $library (@{$global_opt->{'protocol'}->{$protocol}->{'library'}})	{
+		$max_rd_len = ($max_rd_len >= $global_opt->{'library'}->{$library}->{'read_length'}) ? $max_rd_len : $global_opt->{'library'}->{$library}->{'read_length'};
+	}
+	
+	# set configuration file
+	open CONF, "> config" or die "Can't write to SOAPdenovo2 configuration file!\n";
+	
+	my $scaf_rank = 1;
+	# PE libraries
+	if (defined($data{'pe'}))	{
+		foreach my $library (sort keys %{$data{'pe'}})	{
+			print CONF "lib_seq $data{'pe'}->{$library}->[0],$data{'pe'}->{$library}->[1] $library $global_opt->{'library'}->{$library}->{'frag_mean'} $global_opt->{'library'}->{$library}->{'frag_sd'} $global_opt->{'library'}->{$library}->{'read_length'} 0 0 1 $scaf_rank 1 0 0\n";
+		}
+		$scaf_rank++;
+	}
+	
+	# HQMP libraries
+	if (defined($data{'hqmp'}))	{
+		foreach my $library (sort keys %{$data{'hqmp'}})	{
+			print CONF "lib_seq $data{'hqmp'}->{$library}->[0],$data{'hqmp'}->{$library}->[1] $library $global_opt->{'library'}->{$library}->{'frag_mean'} $global_opt->{'library'}->{$library}->{'frag_sd'} $global_opt->{'library'}->{$library}->{'read_length'} 0 0 1 $scaf_rank 1 0 0\n";
+		}
+		$scaf_rank++;
+	}
+
+	# MP libraries
+	if (defined($data{'mp'}))	{
+		foreach my $library (sort keys %{$data{'mp'}})	{
+			print CONF "lib_seq $data{'mp'}->{$library}->[0],$data{'mp'}->{$library}->[1] $library $global_opt->{'library'}->{$library}->{'frag_mean'} $global_opt->{'library'}->{$library}->{'frag_sd'} $global_opt->{'library'}->{$library}->{'read_length'} 0 1 0 $scaf_rank 0 0 0\n";
+		}
+	}
+	
+	# set genome size
+	my $genomeSize = ($global_opt->{'genome_size'} == 0) ? &Utilities::genomeSize($global_opt->{'genome'}) : $global_opt->{'genome_size'};
+	print CONF "genome_size\t".($genomeSize/1000000000)."\n";
+
+	# set diploidy
+	print CONF "is_diploid\t$global_opt->{'protocol'}->{$protocol}->{'diploid'}\n";
+
+	# set k-mer
+	# use KmerGenie
+	#my $kmer = ($global_opt->{'protocol'}->{$protocol}->{'kmer'}) ? $global_opt->{'protocol'}->{$protocol}->{'kmer'} : &kmergenie($protocol, $global_opt, 0, 0, 0, 1, $global_opt->{'protocol'}->{$protocol}->{'diploid'}, 0);
+	#print CONF "mer_size\t$kmer\n";
+	# use the ballpark estimation from Meraculous
+	print CONF "mer_size\t$global_opt->{'protocol'}->{$protocol}->{'kmer'}\n";
+	
+	# set other parameters
+	print CONF "num_prefix_blocks\t4\n";
+	print CONF "no_read_validation\t1\n";
+	print CONF "fallback_on_est_insert_size\t1\n";
+	print CONF "local_num_procs\t$global_opt->{'threads'}\n";
+	print CONF "local_max_memory\t$global_opt->{'memory'}\n";
+
+	close (CONF);
+
+	# set command
+	my $cmd = "$global_opt->{'bin'}->{'meraculous'} -dir . -cleanup_level 2 -c config";
+
+	# run SOAPdenovo2
+	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
+	
+	# create hard link of assembly files
+	if (-e "meraculous_merblast/")	{
+		system("ln meraculous_merblast/contigs.fa $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
+		system("ln meraculous_final_results/final.scaffolds.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
+		print "The assembly protocol $protocol finished successfully!\n\n";
+	}	else	{
+		print "WARNING: No assembly found, $protocol failed!\n\n";
+	}
+
+	return;
+}
+
 sub minia	{
 	(my $protocol, my $global_opt) = @_;
 
@@ -472,8 +554,8 @@ sub minia	{
 	
 	# copy assembly files
 	if (-e "$protocol.contigs.fa")	{
-		system("cp $protocol.contigs.fa $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
-		system("cp $protocol.contigs.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
+		system("ln $protocol.contigs.fa $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
+		system("ln $protocol.contigs.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
 		print "The assembly protocol $protocol finished successfully!\n\n";
 	}	else	{
 		print "WARNING: No assembly found, $protocol failed!\n\n";
@@ -545,8 +627,8 @@ sub platanus	{
 
 	# copy assembly files
 	if (-e "$protocol\_contig.fa")	{
-		system("cp $protocol\_contig.fa $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
-		system("cp $protocol\_gapClosed.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
+		system("ln $protocol\_contig.fa $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
+		system("ln $protocol\_gapClosed.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
 		print "The assembly protocol $protocol finished successfully!\n\n";
 	}	else	{
 		print "WARNING: No assembly found, $protocol failed!\n\n";
@@ -744,8 +826,8 @@ sub sga	{
 
 	# copy assembly files
 	if (-e "$protocol\-contigs.fa")	{
-		system("cp $protocol\-contigs.fa $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
-		system("cp $protocol\-scaffolds.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
+		system("ln $protocol\-contigs.fa $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
+		system("ln $protocol\-scaffolds.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
 		print "The assembly protocol $protocol finished successfully!\n\n";
 	}	else	{
 		print "WARNING: No assembly found, $protocol failed!\n\n";
@@ -1322,7 +1404,7 @@ sub kmergenie	{
 		print "\tWARNING: KmerGenie failed to find a suitable K-mer value! The K-mer size of 33 will be used for the assembly protocol $protocol.\n";
 	}
 
-	if ($min_abundance)	{
+	unless ($min_abundance)	{
 		$min_abundance = 3;
 		if ($kmergenie_out[-2] =~ /^recommended coverage cut-off for best k\:\s*(\d+)/)	{
 			$min_abundance = $1;
@@ -1482,7 +1564,8 @@ sub reapr	{
 	}
 
 	# clean up the temporary read files/links for REAPR evaluation
-	system("rm $short_lib\_1.fq $short_lib\_2.fq $long_lib\_1.fq $long_lib\_2.fq");
+	system("rm $short_lib\_1.fq $short_lib\_2.fq");
+	unless ($short_lib eq $long_lib) { system("rm $long_lib\_1.fq $long_lib\_2.fq"); }
 
 	return;
 }

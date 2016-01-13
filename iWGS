@@ -251,7 +251,7 @@ mkdir("$global_opt{'out_dir'}/evaluation");
 # perform QUAST evaluation on assemblies
 &Assembly::quast("assemblies", \%global_opt);
 
-if (defined($global_opt{'reapr'}))	{
+if (defined($global_opt{'reapr'}->{'short'}) && defined($global_opt{'reapr'}->{'long'}))	{
 	# perform REAPR correction
 	unless (-d "$global_opt{'out_dir'}/assemblies.cor")	{
 		mkdir("$global_opt{'out_dir'}/assemblies.cor");

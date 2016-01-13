@@ -15,6 +15,7 @@ my %tools = (
 	'CA' => 3,		# version 8.3rc1 is used; the pre-compiled rc2 package has a problem
 #	'DISCOVAR' => 3,	# DISCOVAR is not supported on MacOS
 #	'MaSuRCA' => 3,		# has to register at http://www.genome.umd.edu/masurca_compile.html to obtain the package
+#	'Meraculous' => 3,	# Meraculous is not supported on MacOS
 	'Minia' => 3,
 #	'Platanus' => 3,	# official website down at this moment....
 	'SGA' => 3,
@@ -75,11 +76,11 @@ if (defined($category{'2'}))	{
 }
 
 if (defined($tools{'Trimmomatic'}))	{
-	print "Getting Trimmomatic (pre-compiled): version 0.33\n";
-	system "wget -q http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-0.33.zip";
-	system "unzip -q Trimmomatic-0.33.zip";
-	system "mv Trimmomatic-0.33 Trimmomatic";
-	system "mv Trimmomatic/trimmomatic-0.33.jar Trimmomatic/trimmomatic.jar";
+	print "Getting Trimmomatic (pre-compiled): version 0.35\n";
+	system "wget -q http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-0.35.zip";
+	system "unzip -q Trimmomatic-0.35.zip";
+	system "mv Trimmomatic-0.35 Trimmomatic";
+	system "mv Trimmomatic/trimmomatic-0.35.jar Trimmomatic/trimmomatic.jar";
 	print "Done!\n\n";
 }
 
@@ -126,6 +127,7 @@ if (defined($tools{'ABYSS'}))	{
 	system "mv abyss-1.9.0 ABYSS";
 	print "Finished downloading.\nPlease follow ABYSS instructions to finish the installation.\n\n";
 	# uncomment and finish the following lines to install ABYSS if BOOST, sparsehash, openmpi, and sqlite are installed
+	# chdir("$cwd/ABYSS");
 	# my $boost = undef;		# the path to BOOST inlude folder: e.g. /usr/include/boost
 	# my $sparsehash = undef;		# the path to SPARSEHASH include folder: e.g. /usr/local/sparsehash/include
 	# my $openmpi = undef;		# the path to OPENMPI
@@ -133,13 +135,14 @@ if (defined($tools{'ABYSS'}))	{
 	# system "./configure --prefix=$cwd/ABYSS --with-boost=$boost CPPFLAGS=-I$sparsehash --with-mpi=$openmpi --enable-maxk=96 --with-sqlite=$sqlite";
 	# system "make";
 	# system "make install";
+	# chdir($cwd);
 }
 
 if (defined($tools{'CA'}))	{
-	print "Getting Celera Assembler (pre-compiled): version 8.3rc1\n";
-	system "wget -q http://downloads.sourceforge.net/project/wgs-assembler/wgs-assembler/wgs-8.3/wgs-8.3rc1-Darwin_amd64.tar.bz2";
-	system "tar xf wgs-8.3rc1-Darwin_amd64.tar.bz2";
-	system "mv wgs-8.3rc1 CA";
+	print "Getting Celera Assembler (pre-compiled): version 8.3rc2\n";
+	system "wget -q http://downloads.sourceforge.net/project/wgs-assembler/wgs-assembler/wgs-8.3/wgs-8.3rc2-Darwin_amd64.tar.bz2";
+	system "tar xf wgs-8.3rc2-Darwin_amd64.tar.bz2";
+	system "mv wgs-8.3rc2 CA";
 	system "ln -s CA/Darwin_amd64/bin CA/bin";
 	print "Done!\n\n";
 }
@@ -171,11 +174,11 @@ if (defined($tools{'Platanus'}))	{
 =cut
 
 if (defined($tools{'SGA'}))	{
-	print "Getting SGA (source code): version 0.10.13\n";
-	system "wget -q https://github.com/jts/sga/archive/v0.10.13.tar.gz";
-	system "tar xf v0.10.13.tar.gz";
-	system "mv sga-0.10.13 SGA";
-	print "Finished downloading.\nPlease follow SGA instruction to finish the installation.\n\n";	
+	print "Getting SGA (source code): version 0.10.14\n";
+	system "wget -q https://github.com/jts/sga/archive/v0.10.14.tar.gz";
+	system "tar xf v0.10.14.tar.gz";
+	system "mv sga-0.10.14 SGA";
+	print "Finished downloading.\nPlease follow SGA instructions to finish the installation.\n\n";	
 }
 
 if (defined($tools{'SOAPdenovo2'}))	{
@@ -190,10 +193,10 @@ if (defined($tools{'SOAPdenovo2'}))	{
 }
 
 if (defined($tools{'SPAdes'}))	{
-	print "Getting SPAdes (pre-compiled): version 3.6.0\n";
-	system "wget -q http://spades.bioinf.spbau.ru/release3.6.0/SPAdes-3.6.0-Darwin.tar.gz";
-	system "tar xf SPAdes-3.6.0-Darwin.tar.gz";
-	system "mv SPAdes-3.6.0-Darwin SPAdes";
+	print "Getting SPAdes (pre-compiled): version 3.6.2\n";
+	system "wget -q http://spades.bioinf.spbau.ru/release3.6.2/SPAdes-3.6.2-Darwin.tar.gz";
+	system "tar xf SPAdes-3.6.2-Darwin.tar.gz";
+	system "mv SPAdes-3.6.2-Darwin SPAdes";
 	print "Done!\n\n";
 }
 
@@ -226,10 +229,10 @@ if (defined($category{'4'}))	{
 }
 
 if (defined($tools{'QUAST'}))	{
-	print "Getting QUAST (pre-compiled): version 3.1\n";
-	system "wget -q http://downloads.sourceforge.net/project/quast/quast-3.1.tar.gz";
-	system "tar xf quast-3.1.tar.gz";
-	system "mv quast-3.1 QUAST";
+	print "Getting QUAST (pre-compiled): version 3.2\n";
+	system "wget -q http://downloads.sourceforge.net/project/quast/quast-3.2.tar.gz";
+	system "tar xf quast-3.2.tar.gz";
+	system "mv quast-3.2 QUAST";
 	chdir("$cwd/QUAST");
 	system "./install.sh > /dev/null";
 	chdir($cwd);
@@ -256,17 +259,17 @@ if (defined($tools{'BWA'}))	{
 }
 
 if (defined($tools{'SAMtools'}))	{
-	print "Getting SAMtools (pre-compiled): version 1.2\n";
-	system "wget -q https://github.com/samtools/samtools/releases/download/1.2/samtools-1.2.tar.bz2";
-	system "tar xf samtools-1.2.tar.bz2";
+	print "Getting SAMtools (pre-compiled): version 1.3\n";
+	system "wget -q https://github.com/samtools/samtools/releases/download/1.3/samtools-1.3.tar.bz2";
+	system "tar xf samtools-1.3.tar.bz2";
 	unless (-d "dependencies")	{
 		mkdir("dependencies");
 	}
-	chdir("$cwd/samtools-1.2");
+	chdir("$cwd/samtools-1.3");
 	system "make > install.log 2>&1";
 	system "mv samtools $cwd/dependencies";
 	chdir($cwd);
-	system "rm -rf samtools-1.2";
+	system "rm -rf samtools-1.3";
 	print "Done!\n\n";
 }
 

@@ -1,3 +1,7 @@
+Version 1.01	2016/01/11
+	- added support for the assembler Meraculous
+	- updated manual
+
 Version 1.0	2015/10/05
 	- added support for REAPR evaluation
 	- added a script to get third-party tools

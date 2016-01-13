@@ -15,6 +15,7 @@ my %tools = (
 	'CA' => 3,
 	'DISCOVAR' => 3,
 #	'MaSuRCA' => 3,		# has to register at http://www.genome.umd.edu/masurca_compile.html to obtain the package
+	'Meraculous' => 3,
 	'Minia' => 3,
 #	'Platanus' => 3,	# official website down at this moment....
 	'SGA' => 3,
@@ -77,11 +78,11 @@ if (defined($category{'2'}))	{
 }
 
 if (defined($tools{'Trimmomatic'}))	{
-	print "Getting Trimmomatic (pre-compiled): version 0.33\n";
-	system "wget -q http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-0.33.zip";
-	system "unzip -q Trimmomatic-0.33.zip";
-	system "mv Trimmomatic-0.33 Trimmomatic";
-	system "Trimmomatic/trimmomatic-0.33.jar Trimmomatic/trimmomatic.jar";
+	print "Getting Trimmomatic (pre-compiled): version 0.35\n";
+	system "wget -q http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-0.35.zip";
+	system "unzip -q Trimmomatic-0.35.zip";
+	system "mv Trimmomatic-0.35 Trimmomatic";
+	system "ln -s Trimmomatic/trimmomatic-0.35.jar Trimmomatic/trimmomatic.jar";
 	print "Done!\n\n";
 }
 
@@ -128,6 +129,7 @@ if (defined($tools{'ABYSS'}))	{
 	system "mv abyss-1.9.0 ABYSS";
 	print "Finished downloading.\nPlease follow ABYSS instructions to finish the installation.\n\n";
 	# uncomment and finish the following lines to install ABYSS if BOOST, sparsehash, openmpi, and sqlite are installed
+	# chdir("$cwd/ABYSS");
 	# my $boost = undef;		# the path to BOOST inlude folder: e.g. /usr/include/boost
 	# my $sparsehash = undef;		# the path to SPARSEHASH include folder: e.g. /usr/local/sparsehash/include
 	# my $openmpi = undef;		# the path to OPENMPI
@@ -135,6 +137,7 @@ if (defined($tools{'ABYSS'}))	{
 	# system "./configure --prefix=$cwd/ABYSS --with-boost=$boost CPPFLAGS=-I$sparsehash --with-mpi=$openmpi --enable-maxk=96 --with-sqlite=$sqlite";
 	# system "make";
 	# system "make install";
+	# chdir($cwd);
 }
 
 if (defined($tools{'ALLPATHS-LG'}))	{
@@ -142,11 +145,13 @@ if (defined($tools{'ALLPATHS-LG'}))	{
 	system "wget -q ftp://ftp.broadinstitute.org/pub/crd/ALLPATHS/Release-LG/latest_source_code/allpathslg-52488.tar.gz";
 	system "tar xf allpathslg-52488.tar.gz";
 	system "mv allpathslg-52488 ALLPATHS-LG";
-	print "Finished downloading.\nPlease follow ALLPAHTS-LG instruction to finish the installation.\n\n";
+	print "Finished downloading.\nPlease follow ALLPAHTS-LG instructions to finish the installation.\n\n";
 	# uncomment the following lines to install ALLPATHS-LG if the GCC version is 4.7.0 or above, and BOOST is installed
+	# chdir("$cwd/ALLPATHS-LG");
 	# system "./configure --prefix=$cwd/ALLPATHS-LG";
 	# system "make";
 	# system "make install";
+	# chdir($cwd);
 }
 
 if (defined($tools{'CA'}))	{
@@ -160,15 +165,29 @@ if (defined($tools{'CA'}))	{
 
 if (defined($tools{'DISCOVAR'}))	{
 	print "Getting DISCOVAR de novo (source code): version 52488\n";
-	system "wget -q ftp://ftp.broadinstitute.org/pub/crd/Discovar/latest_source_code/discovar-52488.tar.gz";
-	system "tar xf discovar-52488.tar.gz";
-	system "mv discovar-52488 DISCOVAR";
-	print "Finished downloading.\nPlease follow DISCOVAR instruction to finish the installation.\n\n";
-	# uncomment and finish the following lines to install ALLPATHS-LG if the GCC version is 4.7.0 or above, and jemalloc (version 3.6.0 or above) is installed
+	system "wget -q ftp://ftp.broadinstitute.org/pub/crd/DiscovarDeNovo/latest_source_code/discovardenovo-52488.tar.gz";
+	system "tar xf discovardenovo-52488.tar.gz";
+	system "mv discovardenovo-52488 DISCOVAR";
+	print "Finished downloading.\nPlease follow DISCOVAR de novo instructions to finish the installation.\n\n";
+	# uncomment and finish the following lines to install DISCOVAR de novo if the GCC version is 4.7.0 or above, and jemalloc (version 3.6.0 or above) is installed
 	# my $jemalloc = ; # path to jemalloc lib folder: e.g. /usr/local/jemalloc/lib";
+	# chdir("$cwd/DISCOVER");
 	# system "./configure --prefix=$cwd/DISCOVAR --with-jemalloc=$jemalloc";
 	# system "make";
 	# system "make install";
+	# chdir($cwd);
+}
+
+if (defined($tools{'Meraculous'}))	{
+	print "Getting Meraculous (source code): version 2.0.5\n";
+	system "wget -q http://downloads.sourceforge.net/project/meraculous20/release-2.0.5.tgz";
+	system "tar xvf release-2.0.5.tgz";
+	system "mv release-2.0.5 Meraculous";
+	print "Finished downloading.\nPlease follow Meraculous instructions to finish the installation.\n\n";
+	# uncomment and finish the following lines to install Meraculous if the GCC version is 4.4.7 or above, and Boost (version 1.50.0 or above) is installed
+	# chdir("$cwd/Meraculous");
+	# system "sh install.sh $cwd/Meraculous";
+	# chdir($cwd);
 }
 
 if (defined($tools{'Minia'}))	{
@@ -191,10 +210,10 @@ if (defined($tools{'Platanus'}))	{
 =cut
 
 if (defined($tools{'SGA'}))	{
-	print "Getting SGA (source code): version 0.10.13\n";
-	system "wget -q https://github.com/jts/sga/archive/v0.10.13.tar.gz";
-	system "tar xf v0.10.13.tar.gz";
-	system "mv sga-0.10.13 SGA";
+	print "Getting SGA (source code): version 0.10.14\n";
+	system "wget -q https://github.com/jts/sga/archive/v0.10.14.tar.gz";
+	system "tar xf v0.10.14.tar.gz";
+	system "mv sga-0.10.14 SGA";
 	print "Finished downloading.\nPlease follow SGA instruction to finish the installation.\n\n";	
 }
 
@@ -210,10 +229,10 @@ if (defined($tools{'SOAPdenovo2'}))	{
 }
 
 if (defined($tools{'SPAdes'}))	{
-	print "Getting SPAdes (pre-compiled): version 3.6.0\n";
-	system "wget -q http://spades.bioinf.spbau.ru/release3.6.0/SPAdes-3.6.0-Linux.tar.gz";
-	system "tar xf SPAdes-3.6.0-Linux.tar.gz";
-	system "mv SPAdes-3.6.0-Linux SPAdes";
+	print "Getting SPAdes (pre-compiled): version 3.6.2\n";
+	system "wget -q http://spades.bioinf.spbau.ru/release3.6.2/SPAdes-3.6.2-Linux.tar.gz";
+	system "tar xf SPAdes-3.6.2-Linux.tar.gz";
+	system "mv SPAdes-3.6.2-Linux SPAdes";
 	print "Done!\n\n";
 }
 
@@ -246,10 +265,10 @@ if (defined($category{'4'}))	{
 }
 
 if (defined($tools{'QUAST'}))	{
-	print "Getting QUAST (pre-compiled): version 3.1\n";
-	system "wget -q http://downloads.sourceforge.net/project/quast/quast-3.1.tar.gz";
-	system "tar xf quast-3.1.tar.gz";
-	system "mv quast-3.1 QUAST";
+	print "Getting QUAST (pre-compiled): version 3.2\n";
+	system "wget -q http://downloads.sourceforge.net/project/quast/quast-3.2.tar.gz";
+	system "tar xf quast-3.2.tar.gz";
+	system "mv quast-3.2 QUAST";
 	chdir("$cwd/QUAST");
 	system "./install.sh > /dev/null";
 	chdir($cwd);
