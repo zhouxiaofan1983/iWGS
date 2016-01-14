@@ -2,6 +2,7 @@
 use strict;
 use Cwd;
 
+# comment or comment out the lines below to customize the tools to download/install
 my %tools = (
 #	'pIRS' => 1,
 	'ART' => 1,
@@ -17,7 +18,7 @@ my %tools = (
 #	'MaSuRCA' => 3,		# has to register at http://www.genome.umd.edu/masurca_compile.html to obtain the package
 #	'Meraculous' => 3,	# Meraculous is not supported on MacOS
 	'Minia' => 3,
-#	'Platanus' => 3,	# official website down at this moment....
+	'Platanus' => 3,
 	'SGA' => 3,
 	'SOAPdenovo2' => 3,
 	'SPAdes' => 3,
@@ -162,16 +163,16 @@ if (defined($tools{'Minia'}))	{
 	print "Done!\n\n";
 }
 
-=item
-# will activate this when the official link become available
 if (defined($tools{'Platanus'}))	{
-	print "Gettings Platanus (pre-compiled): version 1.2.1\n";
-	system "wget -q ";
-	system "tar xf ";
-	system "mv ";
+	print "Gettings Platanus (pre-compiled): version 1.2.4\n";
+	system "wget -q http://platanus.bio.titech.ac.jp/?ddownload=150 -O platanus.tar.gz";
+	system "tar xf platanus.tar.gz";
+	system "mv Platanus_v1.2.4 Platanus";
+	chdir("$cwd/Platanus");
+	system "make";
+	chdir($cwd);
 	print "Done!\n\n";
 }
-=cut
 
 if (defined($tools{'SGA'}))	{
 	print "Getting SGA (source code): version 0.10.14\n";

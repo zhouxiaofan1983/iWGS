@@ -66,12 +66,13 @@ protocol = P002,ALLPATHS,L001,L002			# assembly protocol "P002" that uses the AL
 protocol = P003,CA,L003					# assembly protocol "P003" that uses the Celera Assembler and the library "L003"
 protocol = P004,DISCOVAR,L004				# assembly protocol "P004" that uses the DISCOVAR de novo assembler and the library "L004"
 protocol = P005,MaSuRCA,L001,L002			# assembly protocol "P005" that uses the MaSuRCA assembler and libraries "L001" and "L002"
-protocol = P006,Platanus,L001,L002			# assembly protocol "P006" that uses the Platanus assembler and libraries "L001" and "L002"
-protocol = P007,SGA,L001,L002				# assembly protocol "P007" that uses the SGA assembler and libraries "L001" and "L002"
-protocol = P008,SOAPdenovo2,L001,L002			# assembly protocol "P008" that uses the SOAPdenovo2 assembler and libraries "L001" and "L002"
-protocol = P009,SPAdes,L001,L002			# assembly protocol "P009" that uses the SPAdes assembler and libraries "L001" and "L002"
-protocol = P010,SPAdes,L001,L002,L005			# assembly protocol "P010" that uses the SPAdes assembler and libraries "L001", "L002", and "L005"
-protocol = P011,Velvet,L001,L002			# assembly protocol "P011" that uses the Velvet assembler and libraries "L001" and "L002"
+protocol = P006,Meraculous,L001,L002			# assembly protocol "P006" that uses the Meraculous assembler and libraries "L001" and "L002"
+protocol = P007,Platanus,L001,L002			# assembly protocol "P007" that uses the Platanus assembler and libraries "L001" and "L002"
+protocol = P008,SGA,L001,L002				# assembly protocol "P008" that uses the SGA assembler and libraries "L001" and "L002"
+protocol = P009,SOAPdenovo2,L001,L002			# assembly protocol "P009" that uses the SOAPdenovo2 assembler and libraries "L001" and "L002"
+protocol = P010,SPAdes,L001,L002			# assembly protocol "P010" that uses the SPAdes assembler and libraries "L001" and "L002"
+protocol = P011,SPAdes,L001,L002,L005			# assembly protocol "P011" that uses the SPAdes assembler and libraries "L001", "L002", and "L005"
+protocol = P012,Velvet,L001,L002			# assembly protocol "P012" that uses the Velvet assembler and libraries "L001" and "L002"
 
 #############################
 # Assembler options
@@ -85,6 +86,9 @@ CA.pbCNS =						# default: 1;
 CA.sensitive =						# default: 0; set to 1 for lower-quality PacBio data
 
 MaSuRCA.kmer =						# default: 0 - to be determined automatically by MaSuRCA
+
+Meraculous.kmer = 					# default: 0 - to be determined automatically by Meraculous
+Meraculous.diploid = 					# default: 0; set to 1 for diploid genome sequencing data
 
 SPAdes.kmer = 						# default: 0 - to be estimated using KmerGenie, and used in addition to "multi-kmer" (if turned on)
 SPAdes.multi-kmer = 					# default: 1 - to use multiple k-mer sizes
@@ -124,6 +128,7 @@ bin.PBDAGCON = #/home/xiaofan/iWGS/tools/CA/bin/pbdagcon
 bin.runCA = #/home/xiaofan/iWGS/tools/CA/bin/runCA
 bin.DISCOVAR = #/home/xiaofan/iWGS/tools/DISCOVAR/bin/DiscovarDeNovo
 bin.MaSuRCA = #/home/xiaofan/iWGS/tools/MaSuRCA/bin/masurca
+bin.Meraculous = #/home/xiaofan/iWGS/tools/Meraculous/bin/run_meraculous.sh
 bin.Platanus = #/home/xiaofan/iWGS/tools/Platanus/platanus
 bin.SGA = #/home/xiaofan/iWGS/tools/SGA/bin/sga
 bin.SOAPdenovo2 = #/home/xiaofan/iWGS/tools/SOAPdenovo2/SOAPdenovo2

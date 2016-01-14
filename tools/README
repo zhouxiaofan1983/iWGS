@@ -1,0 +1,7 @@
+These scripts help to automate the acquisition and installation of most third-party software tool dependencies of iWGS.
+
+Please note:
+
+1: make sure to use the script that matches with your operation system (Linux or MacOS). Some of the tools have pre-compiled executables that are platform specific, and several tools are not available on Mac OS;
+2: some genome assemblers (ABYSS, ALLPATHS-LG, DISCOVAR, and SGA) have particular requirements, therefore the script will download the package without performing the actual installation;
+3: to customize the selection of tools to download/install, please modify the top section of the script to comment (or comment out) the corresponding lines.
