@@ -5,6 +5,7 @@ use warnings;
 
 use File::Basename;
 use Utilities;
+use Math::Round;
 
 sub assemble	{
 	(my $protocol, my $global_opt, my $overwrite, my $cleanup) = @_;
@@ -32,12 +33,20 @@ sub assemble	{
 		&allpaths($protocol, $global_opt);
 	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "ca")	{
 		&ca($protocol, $global_opt);
+	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "canu")	{
+		&canu($protocol, $global_opt);
 	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "discovar")	{
 		&discovar($protocol, $global_opt);
-	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "masurca")	{
+	}   elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "dbg2olc") {
+        &dbg2olc($protocol, $global_opt);
+	}   elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "falcon") {
+        &falcon($protocol, $global_opt);
+    }   elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "masurca")	{
 		&masurca($protocol, $global_opt);
-	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "meraculous")	{
+    }	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "meraculous")	{
 		&meraculous($protocol, $global_opt);
+    }   elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "metassembler") {
+        &metassembler($protocol, $global_opt);
 	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "minia")	{
 		&minia($protocol, $global_opt);
 	}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "platanus")	{
@@ -163,10 +172,10 @@ sub allpaths	{
 	}
 	close (LIBS);
 	
-	# preapre the data
+	# prepare the data
 	mkdir("mydata");
-	my $preapre_bin = dirname($global_opt->{'bin'}->{'allpaths'})."/PrepareAllPathsInputs.pl";
-	my $cmd = "$preapre_bin DATA_DIR=$global_opt->{'out_dir'}/protocols/$protocol/mydata PLOIDY=$global_opt->{'protocol'}->{$protocol}->{'ploidy'}";
+	my $prepare_bin = dirname($global_opt->{'bin'}->{'allpaths'})."/PrepareAllPathsInputs.pl";
+	my $cmd = "$prepare_bin DATA_DIR=$global_opt->{'out_dir'}/protocols/$protocol/mydata PLOIDY=$global_opt->{'protocol'}->{$protocol}->{'ploidy'}";
 	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
 
 	# run ALLPATHS-LG
@@ -197,7 +206,7 @@ sub ca	{
 	# set libraries
 	my %data = &data($protocol, $global_opt, 0, 1, 1, 1);
 
-	# preapre illumina data frg files
+	# prepare illumina data frg files
 	my @frg;
 	my $fastqToCA_bin = ((defined($global_opt->{'bin'}->{'pbcr'})) ? dirname($global_opt->{'bin'}->{'pbcr'}) : dirname($global_opt->{'bin'}->{'runca'}))."/fastqToCA";
 
@@ -292,6 +301,155 @@ sub ca	{
 	return;
 }
 
+sub canu	{
+	(my $protocol, my $global_opt) = @_;
+	
+	print "Starts the assembly protocol $protocol:\t".localtime()."\n";
+
+	# set command
+	my $cmd;
+	my $genomeSize = ($global_opt->{'genome_size'} == 0) ? &Utilities::genomeSize($global_opt->{'genome'}) : $global_opt->{'genome_size'};
+
+	# set libraries
+	my %data = &data($protocol, $global_opt, 0, 0, 0, 0);
+
+	# merge multiple PacBio CLR libraries to one
+	my @clr = keys %{$data{'clr'}};
+    
+	if (scalar @clr > 1)	{
+		foreach my $library (@clr)	{
+			system("cat $data{'clr'}->{$library} >> pacbio_clr.fq");
+		}
+	}	else	{
+		 system("ln $data{'clr'}->{$clr[0]} pacbio_clr.fq");
+	}
+    
+	# create the "canu.spec" file
+	open OUT, "> canu.spec" or die "Can't write to canu.spec!\n";
+    print OUT "maxMemory=$global_opt->{'memory'}\nmaxThreads=$global_opt->{'threads'}\nuseGrid=0\n";
+	close (OUT);
+    
+	$cmd = "$global_opt->{'bin'}->{'canu'} -s canu.spec -p $protocol -d $global_opt->{'out_dir'}/protocols/$protocol genomeSize=$genomeSize";
+	if ($global_opt->{'protocol'}->{$protocol}->{'lowcovrage'}) 	{
+		$cmd .= " corMinCoverage=0 errorRate=0.035";
+	}
+	$cmd .= " -pacbio-raw $global_opt->{'out_dir'}/protocols/$protocol/pacbio_clr.fq";
+
+	# run CA
+	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
+	
+	# create hard link of assembly files
+	if (-e "$protocol.contigs.fasta")	{
+		system("ln $protocol.contigs.fasta $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
+		system("ln $protocol.contigs.fasta $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
+		print "The assembly protocol $protocol finished successfully!\n\n";
+	}	else	{
+		print "WARNING: No assembly found, $protocol failed!\n\n";
+	}
+
+	return;
+}
+
+sub dbg2olc	{
+	(my $protocol, my $global_opt) = @_;
+	
+	print "Starts the assembly protocol $protocol:\t".localtime()."\n";
+
+	# set libraries
+	my %data = &data($protocol, $global_opt, 0, 0, 0, 0);
+
+	# merge multiple PacBio CLR libraries to one, convert FASTQ to FASTA, and collect depth information
+	my $clr_depth = 0;
+    open FA, "> pacbio_clr.fa" or die "Can't write to pacbio_clr.fa";
+    foreach my $library (keys %{$data{'clr'}})  {
+	    $clr_depth += $global_opt->{'library'}->{$library}->{'depth'};
+        open FQ, "< $data{'clr'}->{$library}" or die "Can't open $data{'clr'}->{$library}!\n"; 
+	    while (my $s = <FQ>)    {
+            $s =~ s/^@/>/;
+            print FA $s;
+            $s = <FQ>;
+            print FA $s;
+            <FQ>;
+            <FQ>;
+        }
+        close (FQ);
+    }
+    close (FA);
+    
+	# set command
+	my $cmd = "$global_opt->{'bin'}->{'dbg2olc'} k 17 KmerCovTh 2";
+
+    # set depth-dependent parameters
+    if ($clr_depth <= 10)   {
+        $cmd .= " AdaptiveTh 0.001 MinOverlap 10";
+    }   elsif ($clr_depth <= 25)   {
+        $cmd .= " AdaptiveTh 0.005 MinOverlap 20";
+    }   elsif ($clr_depth <= 40)    {
+        $cmd .= " AdaptiveTh 0.01 MinOverlap 20";
+    }   else    {
+        $cmd .= " AdaptiveTh 0.01 MinOverlap 100";
+    }
+    if ($clr_depth > 10)   {
+        $cmd .= " RemoveChimera 1";
+    }
+    if ($clr_depth >= 100)  {
+        $cmd .= " ChimeraTh 2 ContigTh 2";
+    }
+
+    # identify the protocol with the highest contig N50 size
+    my @ctg = &sort_ctg($global_opt);
+    $cmd .= " Contigs $global_opt->{'out_dir'}/assemblies/$ctg[0].contigs.fa f pacbio_clr.fa";
+
+	# run DBG2OLC
+	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
+	
+    # prepare input for consensus calling
+    my $dbg2olc_dir = dirname($global_opt->{'bin'}->{'dbg2olc'});
+    mkdir("consensus_dir");
+    system("cat $global_opt->{'out_dir'}/assemblies/$ctg[0].contigs.fa pacbio_clr.fa > ctg_pb.fasta");
+    system("cp $dbg2olc_dir/split_reads_by_backbone.py $dbg2olc_dir/SeqIO.py .");
+    
+    # modify the path to "Sparc" and "blasr" in the "split_and_run_sparc.sh" script
+    open SH1, "< $dbg2olc_dir/split_and_run_sparc.sh" or die "Can't open $dbg2olc_dir/split_and_run_sparc.sh!\n";
+    open SH2, "> split_and_run_sparc.sh" or die "Can't write to split_and_run_sparc.sh!\n";
+    while (<SH1>)   {
+        s/blasr/\Q$global_opt->{'bin'}->{'blasr'}\E/;
+        s/Sparc/\Q$global_opt->{'bin'}->{'sparc'}\E/;
+        print SH2 $_;
+    }
+    close (SH1);
+    close (SH2);
+    
+    # modify the path to "Sparc" and "blasr" in the "split_and_create_cns_batches.sh" script
+    open SH1, "< $dbg2olc_dir/split_and_create_cns_batches.sh" or die "Can't open $dbg2olc_dir/split_and_create_cns_batches.sh!\n";
+    open SH2, "> split_and_create_cns_batches.sh" or die "Can't write to split_and_create_cns_batches.sh!\n";
+    while (<SH1>)   {
+        s/blasr/\Q$global_opt->{'bin'}->{'blasr'}\E/;
+        s/Sparc/\Q$global_opt->{'bin'}->{'sparc'}\E/;
+        print SH2 $_;
+    }
+    close (SH1);
+    close (SH2);
+
+    # modify file privilege
+    system("chmod 755 split_reads_by_backbone.py split_and_run_sparc.sh split_and_create_cns_batches.sh");
+
+    # run consensus calling
+    $cmd = "sh split_and_run_sparc.sh backbone_raw.fasta DBG2OLC_Consensus_info.txt ctg_pb.fasta consensus_dir 2";
+    &Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
+
+	# create hard link of assembly files
+	if (-e "consensus_dir/final_assembly.fasta")	{
+		system("ln consensus_dir/final_assembly.fasta $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
+		system("ln consensus_dir/final_assembly.fasta $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
+		print "The assembly protocol $protocol finished successfully!\n\n";
+	}	else	{
+		print "WARNING: No assembly found, $protocol failed!\n\n";
+	}
+
+	return;
+}
+
 sub discovar	{
 	(my $protocol, my $global_opt) = @_;
 
@@ -329,6 +487,83 @@ sub discovar	{
 		print "WARNING: No assembly found, $protocol failed!\n\n";
 	}
 	
+	return;
+}
+
+sub falcon	{
+	(my $protocol, my $global_opt) = @_;
+	
+	print "Starts the assembly protocol $protocol:\t".localtime()."\n";
+    
+	# set libraries
+	my %data = &data($protocol, $global_opt, 0, 0, 0, 0);
+    
+	# merge multiple PacBio CLR libraries to one, convert FASTQ to FASTA, and collect read length information
+    mkdir("data");
+    my @len;
+    open FA, "> data/pacbio_clr.fasta" or die "Can't write to data/pacbio_clr.fasta";
+    my $i = 0;
+    foreach my $library (keys %{$data{'clr'}})  {
+        $i++;
+        my $header = ">m111_222_333_c456789_s1_p$i";
+        my $j = 0;
+        open FQ, "< $data{'clr'}->{$library}" or die "Can't open $data{'clr'}->{$library}!\n"; 
+	    while (my $s = <FQ>)    {
+            $j++;
+            $s = <FQ>;
+            my $l = length($s)-1;
+            push @len, $l;
+            print FA "$header/$j/1_$l\n";
+            print FA $s;
+            <FQ>;
+            <FQ>;
+        }
+        close (FQ);
+    }
+    close (FA);
+    
+    # create the data input file
+    open FOFN, "> input.fofn" or die "Can't write to input.fofn!\n";
+    print FOFN "data/pacbio_clr.fasta\n";
+    close (FOFN);
+
+    # determine the length cutoff
+	my $genomeSize = ($global_opt->{'genome_size'} == 0) ? &Utilities::genomeSize($global_opt->{'genome'}) : $global_opt->{'genome_size'};
+    my $genomeSize_20 = 20*$genomeSize;
+    @len = sort {$b<=>$a} @len;
+    my $total_len = 0; my $len_cutoff;
+    foreach my $len (@len)  {
+        $total_len += $len;
+        if ($total_len > $genomeSize_20)    {
+           $len_cutoff = int($len/1000)*1000;
+           last; 
+        }
+    }
+
+    # determine the number of concurrent jobs and memory limits
+    my $con_jobs = int($global_opt->{'threads'}/4);
+    my $mem_limit = int(10*$global_opt->{'memory'}/$con_jobs)/10;
+
+    # create the configuration file
+    open CONF, "> fc_run_$protocol.cfg" or die "Can't write to fc_run_$protocol.cfg!\n";
+    print CONF "[General]\njob_type = local\n\ninput_fofn = input.fofn\n\ninput_type = raw\n\nlength_cutoff = $len_cutoff\n\nlength_cutoff_pr = $len_cutoff\n\nsge_option_da =\nsge_option_la =\nsge_option_pda =\nsge_option_pla =\nsge_option_fc =\nsge_option_cns =\n\npa_concurrent_jobs = $con_jobs\novlp_concurrent_jobs = $con_jobs\ncns_concurrent_jobs = 1\n\npa_HPCdaligner_option =  -v -B4 -M$mem_limit -e.70 -l1000 -s1000\novlp_HPCdaligner_option = -v -B4 -M$mem_limit -h60 -e.96 -l500 -s1000\n\npa_DBsplit_option = -x500 -s50\novlp_DBsplit_option = -x500 -s50\nfalcon_sense_option = --output_multi --min_idt 0.70 --min_cov 4 --max_n_read 200 --n_core $global_opt->{'threads'}\n\noverlap_filtering_setting = --max_diff 100 --max_cov 100 --min_cov 20 --bestn 10 --n_core $global_opt->{'threads'}\n";
+    close (CONF);
+
+	# set command
+	my $cmd = "$global_opt->{'bin'}->{'falcon'} fc_run_$protocol.cfg";
+	
+    # run FALCON
+	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
+    
+	# create hard link of assembly files
+	if (-e "2-asm-falcon/p_ctg.fa")	{
+		system("ln 2-asm-falcon/p_ctg.fa $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
+		system("ln 2-asm-falcon/p_ctg.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
+		print "The assembly protocol $protocol finished successfully!\n\n";
+	}	else	{
+		print "WARNING: No assembly found, $protocol failed!\n\n";
+	}
+
 	return;
 }
 
@@ -467,7 +702,7 @@ sub meraculous	{
 	
 	# set genome size
 	my $genomeSize = ($global_opt->{'genome_size'} == 0) ? &Utilities::genomeSize($global_opt->{'genome'}) : $global_opt->{'genome_size'};
-	print CONF "genome_size\t".($genomeSize/1000000000)."\n";
+	print CONF "genome_size\t".sprintf("%.9f", $genomeSize/1000000000)."\n";
 
 	# set diploidy
 	print CONF "is_diploid\t$global_opt->{'protocol'}->{$protocol}->{'diploid'}\n";
@@ -495,7 +730,7 @@ sub meraculous	{
 	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
 	
 	# create hard link of assembly files
-	if (-e "meraculous_merblast/")	{
+	if (-e "meraculous_merblast/contigs.fa")	{
 		system("ln meraculous_merblast/contigs.fa $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
 		system("ln meraculous_final_results/final.scaffolds.fa $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
 		print "The assembly protocol $protocol finished successfully!\n\n";
@@ -504,6 +739,51 @@ sub meraculous	{
 	}
 
 	return;
+}
+
+sub metassembler    {
+    (my $protocol, my $global_opt) = @_;
+
+    print "Starts the assembly protocol $protocol:\t".localtime()."\n";
+
+    # set library
+    my %data = &data($protocol, $global_opt, 0, 1, 0, 0);
+    my @library = keys %{$data{'mp'}};
+
+    # set parameters
+    my $bowtie_minins = ($global_opt->{'library'}->{$library[0]}->{'frag_mean'} > 3*$global_opt->{'library'}->{$library[0]}->{'frag_sd'}) ? $global_opt->{'library'}->{$library[0]}->{'frag_mean'} - 3*$global_opt->{'library'}->{$library[0]}->{'frag_sd'} : 0;
+    my $bowtie_maxins = $global_opt->{'library'}->{$library[0]}->{'frag_mean'} + 3*$global_opt->{'library'}->{$library[0]}->{'frag_sd'};
+    
+    # sort protocols by contig N50 size
+    my @ctg = &sort_ctg($global_opt);
+
+    # create the configuration file
+    open CONF, "> metassemble.config" or die "Can't write to metassemble.config!\n";
+    print CONF "[global]\n\nbowtie2_threads=$global_opt->{'threads'}\nbowtie2_read1=$data{'mp'}->{$library[0]}->[0]\nbowtie2_read2=$data{'mp'}->{$library[0]}->[1]\nbowtie2_maxins=$bowtie_maxins\nbowtie2_minins=$bowtie_minins\n\nmateAn_m=$global_opt->{'library'}->{$library[0]}->{'frag_mean'}\nmateAn_s=$global_opt->{'library'}->{$library[0]}->{'frag_sd'}\n\n";
+    foreach my $i (0..$#ctg)  {
+        print CONF "[".($i+1)."]\nfasta=$global_opt->{'out_dir'}/assemblies/$ctg[$i].contigs.fa\nID=$ctg[$i]\n\n";
+    }
+    close (CONF);
+    
+    # set command
+    my $cmd = "$global_opt->{'bin'}->{'metassembler'} --conf metassemble.config --outd .";
+
+    # run Metassembler
+    &Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
+
+	# create hard link of assembly files
+    @ctg = reverse @ctg;
+    my $ctg = join ".", @ctg;
+    $ctg = "Q".$ctg;
+	if (-e "Metassembly/$ctg/M1/contig.fasta")	{
+		system("ln Metassembly/Q$ctg/M1/Q$ctg.ctgs.fasta $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
+		system("ln Metassembly/Q$ctg/M1/Q$ctg.ctgs.fasta $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
+		print "The assembly protocol $protocol finished successfully!\n\n";
+	}	else	{
+		print "WARNING: No assembly found, $protocol failed!\n\n";
+	}
+
+    return;
 }
 
 sub minia	{
@@ -667,10 +947,20 @@ sub sga	{
 	if (defined($lib{'pe'}))	{
 		foreach my $library (@{$lib{'pe'}})	{
 			if ($global_opt->{'library'}->{$library}->{'qc'} eq "0" || $global_opt->{'library'}->{$library}->{'qc'} eq "original" || !(-s "$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq" && -s "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq"))	{
-				system("cat $global_opt->{'out_dir'}/libraries/$library/$library\_1.fq $global_opt->{'out_dir'}/libraries/$library/$library\_2.fq >> sga_tmp/$protocol.fq");
+                if (&check_fastq_name("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq"))    {
+				    system("cat $global_opt->{'out_dir'}/libraries/$library/$library\_1.fq $global_opt->{'out_dir'}/libraries/$library/$library\_2.fq >> sga_tmp/$protocol.fq");
+                }   else    {
+                    &change_fastq_name("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "sga_tmp/$protocol.fq", 1);
+                    &change_fastq_name("$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq", "sga_tmp/$protocol.fq", 2);
+                }
 				push @{$scaf_lib{$library}}, ("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq");
 			}	else	{
-				system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq >> sga_tmp/$protocol.fq");
+                if (&check_fastq_name("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq"))  {
+				    system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq >> sga_tmp/$protocol.fq");
+                }   else    {
+                    &change_fastq_name("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "sga_tmp/$protocol.fq", 1);
+                    &change_fastq_name("$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq", "sga_tmp/$protocol.fq", 2);
+                }
 				push @{$scaf_lib{$library}}, ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq");
 				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq")	{
 					system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq >> sga_tmp/$protocol.fq");
@@ -709,16 +999,31 @@ sub sga	{
 			}
 
 			if ($qc_status eq "original")	{
-				system("cat $global_opt->{'out_dir'}/libraries/$library/$library\_1.fq $global_opt->{'out_dir'}/libraries/$library/$library\_2.fq >> sga_tmp/$protocol.fq");
+                if (&check_fastq_name("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq"))  {
+				    system("cat $global_opt->{'out_dir'}/libraries/$library/$library\_1.fq $global_opt->{'out_dir'}/libraries/$library/$library\_2.fq >> sga_tmp/$protocol.fq");
+                }   else    {
+                    &change_fastq_name("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "sga_tmp/$protocol.fq", 1);
+                    &change_fastq_name("$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq", "sga_tmp/$protocol.fq", 2);
+                }
 				push @{$scaf_lib{$library}}, ("$global_opt->{'out_dir'}/libraries/$library/$library\_1.fq", "$global_opt->{'out_dir'}/libraries/$library/$library\_2.fq");
 			}	elsif ($qc_status eq "nextclip")	{
-				system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq >> sga_tmp/$protocol.fq");
+                if (&check_fastq_name("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq"))  {
+				    system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq >> sga_tmp/$protocol.fq");
+                }   else    {
+                    &change_fastq_name("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq", "sga_tmp/$protocol.fq", 1);
+                    &change_fastq_name("$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq", "sga_tmp/$protocol.fq", 2);
+                }
 				push @{$scaf_lib{$library}}, ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.nc.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.nc.fq");
 				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq")	{
 					system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library.nc.fq >> sga_tmp/$protocol.fq");
 				}
 			}	elsif ($qc_status eq "trimmomatic")	{
-				system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq >> sga_tmp/$protocol.fq");
+                if (&check_fastq_name("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq"))  {
+				    system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq $global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq >> sga_tmp/$protocol.fq");
+                }   else    {
+                    &change_fastq_name("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "sga_tmp/$protocol.fq", 1);
+                    &change_fastq_name("$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq", "sga_tmp/$protocol.fq", 2);
+                }
 				push @{$scaf_lib{$library}}, ("$global_opt->{'out_dir'}/preprocessed/$library/$library\_1.tm.fq", "$global_opt->{'out_dir'}/preprocessed/$library/$library\_2.tm.fq");
 				if (-s "$global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq")	{
 					system("cat $global_opt->{'out_dir'}/preprocessed/$library/$library.tm.fq >> sga_tmp/$protocol.fq");
@@ -818,7 +1123,7 @@ sub sga	{
 
 		# 12. generate fasta file
 		print "\tstep 13: generate scaffolds.fa\n";
-		$cmd = "$global_opt->{'bin'}->{'sga'} scaffold2fasta --write-unplaced -m 200 -o $protocol\-scaffolds.fa -a $protocol\-graph.asqg.gz -o $protocol\-scaffolds.fa $protocol\-scaf";
+		$cmd = "$global_opt->{'bin'}->{'sga'} scaffold2fasta --write-unplaced -m 200 -a $protocol\-graph.asqg.gz -o $protocol\-scaffolds.fa $protocol\-scaf";
 		&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
 	}	else	{
 		print "\tWARNING: the tools \"BWA\" and \"SAMtools\" are not available, will not perform scaffolding.\n";
@@ -1119,7 +1424,7 @@ sub dipspades	{
 	&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.assembly.log");
 	
 	# create hard link of assembly files
-	if (-e "consensus_contigs.fasta")	{
+	if (-e "dipspades/consensus_contigs.fasta")	{
 		system("ln consensus_contigs.fasta $global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
 		system("ln consensus_contigs.fasta $global_opt->{'out_dir'}/assemblies/$protocol.scaffolds.fa");
 		print "The assembly protocol $protocol finished successfully!\n\n";
@@ -1223,6 +1528,112 @@ sub velvet	{
 	}
 
 	return;
+}
+
+sub sort_ctg    {
+    my $global_opt = $_[0];
+
+    my %ctg;
+    foreach my $protocol (keys %{$global_opt->{'protocol'}})    {
+        next unless (-e "$global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
+        my $skip = 0;
+        foreach my $library (@{$global_opt->{'protocol'}->{$protocol}->{'library'}}) {
+            if ($global_opt->{'library'}->{$library}->{'read_type'} eq "clr")   {
+                $skip = 1;
+                last;
+            }
+        }
+        next if ($skip);
+        $ctg{$protocol} = &N50("$global_opt->{'out_dir'}/assemblies/$protocol.contigs.fa");
+    }
+
+    my @ctg = sort {$ctg{$b} <=> $ctg{$a}} keys %ctg;
+
+    return @ctg;
+}
+
+sub N50 {
+    my $assembly = $_[0];
+
+    my $asm_len = 0; my %ctg_len; my $ctg_len = 0;
+    open ASM, "< $assembly" or die "Can't open $assembly!\n";
+    #my $skip = <ASM>;
+    while (<ASM>)    {
+        if (/>/)    {
+            $asm_len += $ctg_len;
+            $ctg_len{$ctg_len}++;
+            $ctg_len = 0;
+        }   else    {
+            s/\s//g;
+            $ctg_len += length($_);
+        }
+    }
+    close (ASM);
+    $ctg_len{$ctg_len}++;
+
+    my $N50 = 0;
+    my $asm_len_half = int(0.5*$asm_len);
+    foreach $ctg_len (sort {$b<=>$a} keys %ctg_len)  {
+        $asm_len -= $ctg_len*$ctg_len{$ctg_len};
+        if ($asm_len < $asm_len_half)   {
+            $N50 = $ctg_len;
+            last;
+        }
+    }
+
+    return $N50;
+}
+
+sub check_fastq_name    {
+    (my $infile1, my $infile2) = @_;
+    
+    my $id1;
+    open IN_FQ, "< $infile1" or die "Can't open $infile1!\n";
+    while (<IN_FQ>)    {
+        if (/^(\S+)/)   {
+            $id1 = $1;
+        }
+        last;
+    }
+    close (IN_FQ);
+
+    my $id2;
+    open IN_FQ, "< $infile2" or die "Can't open $infile2!\n";
+    while (<IN_FQ>)    {
+        if (/^(\S+)/)   {
+            $id2 = $1;
+        }
+        last;
+    }
+    close (IN_FQ);
+    
+    if ($id1 eq $id2)   {
+        return 0;
+    }   else    {
+        return 1;
+    }
+}
+
+sub change_fastq_name    {
+    (my $infile, my $outfile, my $suffix) = @_;
+
+    open IN_FQ, "< $infile" or die "Can't open $infile!\n";
+    open OUT_FQ, ">> $outfile" or die "Can't open $outfile!\n";
+    while (my $s = <IN_FQ>) {
+        if ($s = /^(\S+)/)  {
+            print OUT_FQ "$1\/$suffix\n";
+        }
+        $s = <IN_FQ>;
+        print OUT_FQ $s;
+        $s = <IN_FQ>;
+        print OUT_FQ "+\n";
+        $s = <IN_FQ>;
+        print OUT_FQ $s;
+    }
+    close (OUT_FQ);
+    close (IN_FQ);
+
+    return;
 }
 
 sub data	{
@@ -1382,7 +1793,7 @@ sub kmergenie	{
 	
 	# set command for kmergenie
 	my $cmd = "$global_opt->{'bin'}->{'kmergenie'} $protocol.fq -t $global_opt->{'threads'}";
-	if ($diploid)	{
+	if ($diploid || $global_opt->{'kmergenie'}->{'diploid'})	{
 		$cmd .= " --diploid";
 	}
 
@@ -1488,7 +1899,7 @@ sub reapr	{
 	print "Starts REAPR evalution:\t".localtime()."\n\n";
 
 	print "Prepare reads for REAPR evaluation:\n";
-	# preapre the read files/links for REAPR evaluation
+	# prepare the read files/links for REAPR evaluation
 	# set up links to the PE library
 	my $short_lib = $global_opt->{'reapr'}->{'short'};
 	my $short_type = $global_opt->{'library'}->{$short_lib}->{'read_type'};
@@ -1536,7 +1947,7 @@ sub reapr	{
 				}
 
 				# REAPR evaluation consists of three steps:
-				# 1. preapre the assembly file
+				# 1. prepare the assembly file
 				my $cmd = "$global_opt->{'bin'}->{'reapr'} facheck $file $protocol.$type";
 				&Utilities::execute_cmd($cmd, "$global_opt->{'out_dir'}/logs/$protocol.reapr.log");
 				# 2. map short insert library if available

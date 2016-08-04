@@ -45,7 +45,8 @@ sub prepare_real	{
 	
 	# cleanup empty temp files
 	unless ($global_opt->{'library'}->{$library}->{'read_type'} eq "se")	{
-		system("rm temp_1.fq temp_2.fq");
+		if (-e "temp_1.fq") { system "rm temp_1.fq"; }
+		if (-e "temp_2.fq") { system "rm temp_2.fq"; }
 =item
 		if ($global_opt->{'library'}->{$library}->{'read_type'} eq "hqmp")	{
 			print "Reverse complement $library.\n";

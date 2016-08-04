@@ -1,3 +1,6 @@
+Version 1.1     2016/08/04
+	- added support for Canu, DBG2OLC, FALCON, and Metassembler
+
 Version 1.01	2016/01/11
 	- added support for the assembler Meraculous
 	- updated manual

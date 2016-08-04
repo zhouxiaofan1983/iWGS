@@ -77,6 +77,9 @@ sub init_global_opt	{
 			"pbcns" => 1,
 			"sensitive" => 0,
 		},
+        "canu" => {
+            "sensitive" => 0,
+        },
 		"discovar" => undef,
 		"masurca" => {
 			"kmer" => 0,
@@ -115,6 +118,9 @@ sub init_global_opt	{
 			"kmer" => 0,
 			"option" => "-exp_cov auto",
 		},
+        "kmergenie" => {
+            "diploid" => 0,
+        },
 		"quast" => {
 			"eukaryote" => 1,
 			"gage" => 1,
@@ -142,10 +148,16 @@ sub init_global_opt	{
 	$global_opt{'bin'}->{'blasr'} = (-e "$root_dir/tools/CA/bin/blasr") ? "$root_dir/tools/CA/bin/blasr" : File::Which::which("blasr");
 	$global_opt{'bin'}->{'pbdagcon'} = (-e "$root_dir/tools/CA/bin/pbdagcon") ? "$root_dir/tools/CA/bin/pbdagcon" : File::Which::which("pbdagcon");
 	$global_opt{'bin'}->{'bank-transact'} = (-e "$root_dir/tools/dependencies/bank-transact") ? "$root_dir/tools/dependencies/bank-transact" : File::Which::which("bank-transact");
-	$global_opt{'bin'}->{'discovar'} = (-e "$root_dir/tools/DISCOVAR/bin/DiscovarDeNovo") ? "$root_dir/tools/DISCOVAR/bin/DiscovarDeNovo" : File::Which::which("DiscovarDeNovo");
-	$global_opt{'bin'}->{'masurca'} = (-e "$root_dir/tools/MaSuRCA/bin/masurca") ? "$root_dir/tools/MaSuRCA/bin/masurca" : File::Which::which("masurca");
+	$global_opt{'bin'}->{'canu'} = (-e "$root_dir/tools/Canu/bin/canu") ? "$root_dir/tools/Canu/bin/canu" : File::Which::which("canu");
+    $global_opt{'bin'}->{'dbg2olc'} = (-e "$root_dir/tools/DBG2OLC/DBG2OLC") ? "$root_dir/tools/DBG2OLC/DBG2OLC" : File::Which::which("DBG2OLC") ;
+    $global_opt{'bin'}->{'sparc'} = (-e "$root_dir/tools/DBG2OLC/Sparc") ? "$root_dir/tools/DBG2OLC/Sparc" : File::Which::which("Sparc") ;
+    $global_opt{'bin'}->{'discovar'} = (-e "$root_dir/tools/DISCOVAR/bin/DiscovarDeNovo") ? "$root_dir/tools/DISCOVAR/bin/DiscovarDeNovo" : File::Which::which("DiscovarDeNovo");
+	$global_opt{'bin'}->{'falcon'} = (-e "$root_dir/tools/FALCON/fc_env/bin/fc_run.py") ? "$root_dir/tools/FALCON/fc_env/bin/fc_run.py" : File::Which::which("fc_run.py") ;
+    $global_opt{'bin'}->{'masurca'} = (-e "$root_dir/tools/MaSuRCA/bin/masurca") ? "$root_dir/tools/MaSuRCA/bin/masurca" : File::Which::which("masurca");
 	$global_opt{'bin'}->{'meraculous'} = (-e "$root_dir/tools/Meraculous/bin/run_meraculous.sh") ? "$root_dir/tools/Meraculous/bin/run_meraculous.sh" : File::Which::which("run_meraculous.sh");
-	$global_opt{'bin'}->{'minia'} = (-e "$root_dir/tools/Minia/bin/minia") ? "$root_dir/tools/Minia/bin/minia" : File::Which::which("minia");
+	$global_opt{'bin'}->{'metassembler'} = (-e "$root_dir/tools/Metassembler/bin/metassemble") ? "$root_dir/tools/Metassembler/bin/metassemble" : File::Which::which("metassemble");
+	$global_opt{'bin'}->{'bowtie2'} = (-e "$root_dir/tools/Bowtie2/bowtie2") ? "$root_dir/tools/Bowtie2/bin/bowtie2" : File::Which::which("bowtie2");
+    $global_opt{'bin'}->{'minia'} = (-e "$root_dir/tools/Minia/bin/minia") ? "$root_dir/tools/Minia/bin/minia" : File::Which::which("minia");
 	$global_opt{'bin'}->{'platanus'} = (-e "$root_dir/tools/Platanus/platanus") ? "$root_dir/tools/Platanus/platanus" : File::Which::which("platanus");
 	$global_opt{'bin'}->{'sga'} = (-e "$root_dir/tools/SGA/bin/sga") ? "$root_dir/tools/SGA/bin/sga" : File::Which::which("sga");
 	$global_opt{'bin'}->{'bwa'} = (-e "$root_dir/tools/dependencies/bwa") ? "$root_dir/tools/dependencies/bwa" : File::Which::which("bwa");
@@ -448,14 +460,14 @@ sub check_libraries	{
 				&check_library("art", $libraries->{$library}, $global_opt, \@err_msg, \@warn_msg);
 			}	elsif ($libraries->{$library}->{'read_type'} =~ /^(pe|mp)$/)	{
 				# check the average and standard deviation of insert size, must be greater than 0
-				unless (defined($libraries->{$library}->{'frag_mean'}) && $libraries->{$library}->{'frag_mean'} =~ /^\d+$/ && $libraries->{$library}->{'frag_mean'} > 0) { push @err_msg, "\t\tthe average insert size should be a positive number.\n"; }
+				unless (defined($libraries->{$library}->{'frag_mean'}) && $libraries->{$library}->{'frag_mean'} =~ /^[\d\.]+$/ && $libraries->{$library}->{'frag_mean'} > 0) { push @err_msg, "\t\tthe average insert size should be a positive number.\n"; }
 				if ($libraries->{$library}->{'read_type'} eq "pe" && $libraries->{$library}->{'frag_mean'} >= 2000)	{
 					push @err_msg, "\t\tthe mean fragment size of a PE library should be smaller than 2kbp.\n";
 				}	elsif ($libraries->{$library}->{'read_type'} eq 'mp' && $libraries->{$library}->{'frag_mean'} < 2000)	{
-					push @err_msg, "\t\tthe mean fragment size of a MP library should not be smaller than 2kbp.\n";
+                    #push @err_msg, "\t\tthe mean fragment size of a MP library should not be smaller than 2kbp.\n";
 				}
 				# check the standard deviation of insert size, must be greater than 0
-				unless (defined($libraries->{$library}->{'frag_sd'}) && $libraries->{$library}->{'frag_sd'} =~ /^\d+$/) { push @err_msg, "\t\tthe standard deviation of insert size should be a number no less than zero.\n"; }
+				unless (defined($libraries->{$library}->{'frag_sd'}) && $libraries->{$library}->{'frag_sd'} =~ /^[\d\.]+$/) { push @err_msg, "\t\tthe standard deviation of insert size should be a number no less than zero.\n"; }
 				# check the read length, must be greater than 0
 				if (defined($libraries->{$library}->{'read_length'}) && $libraries->{$library}->{'read_length'} =~ /^\d+$/ && $libraries->{$library}->{'read_length'} > 0)	{
 					
@@ -677,9 +689,13 @@ sub check_protocols	{
 		"abyss" => "ABYSS",
 		"allpaths" => "ALLPATHS-LG",
 		"ca" => "Celera Assembler",
-		"discovar" => "DISCOVAR de novo",
+        "canu" => "Canu",
+        "dbg2olc" => "DBG2OLC",
+        "discovar" => "DISCOVAR de novo",
+        "falcon" => "FALCON",
 		"masurca" => "MaSuRCA",
 		"meraculous" => "Meraculous",
+        "metassembler" => "Metassembler",
 		"minia" => "Minia",
 		"platanus" => "Platanus",
 		"sga" => "SGA",
@@ -688,7 +704,8 @@ sub check_protocols	{
 		"dipspades" => "dipSPAdes",
 		"velvet" => "Velvet",
 	);
-	# set assemblers that would invoke kmergenie
+	
+    # set assemblers that would invoke kmergenie
 	my %kmergenie = (
 		"abyss" => 1,
 		#"meraculous" => 1,
@@ -698,8 +715,8 @@ sub check_protocols	{
 		"dipspades" => 1,
 		"velvet" => 1,
 	);
-
-	my $protocols = $global_opt->{'protocol'};
+	
+    my $protocols = $global_opt->{'protocol'};
 	foreach my $protocol (keys %{$protocols})	{
 		# to collect protocol specific error messages
 		my @err_msg;
@@ -731,7 +748,7 @@ sub check_protocols	{
 		if ((defined($kmergenie{$assembler}) && $protocols->{$protocol}->{'kmer'} eq "0") || ($assembler eq "minia" && $protocols->{$protocol}->{'min-abundance'} eq "0"))	{
 			unless (defined($global_opt->{'bin'}->{'kmergenie'}) && -e $global_opt->{'bin'}->{'kmergenie'}) { push @err_msg, "\t\tthe k-mer optimizer KmerGenie is not available.\n"; }
 		}
-
+        
 		# check assembler specific options
 		if ($assembler eq "abyss")	{
 			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/ && ($protocols->{$protocol}->{'kmer'} == 0 || $protocols->{$protocol}->{'kmer'}%2 == 1)) { push @err_msg, "\t\tthe option \"kmer\" should be \"0\" or an odd number.\n"; }
@@ -740,7 +757,9 @@ sub check_protocols	{
 		}	elsif ($assembler eq "ca")	{
 			unless ($protocols->{$protocol}->{'pbcns'} =~ /^[01]$/) { push @err_msg, "\t\tthe option \"pbCNS\" should be either \"0\" or \"1\".\n"; }
 			unless ($protocols->{$protocol}->{'sensitive'} =~ /^[01]$/) { push @err_msg, "\t\tthe option \"sensitive\" should be either \"0\" or \"1\".\n"; }
-		}	elsif ($assembler eq "masurca")	{
+		}   elsif ($assembler eq "canu")    {
+			unless ($protocols->{$protocol}->{'sensitive'} =~ /^[01]$/) { push @err_msg, "\t\tthe option \"sensitive\" should be either \"0\" or \"1\".\n"; }
+        }   elsif ($assembler eq "masurca")	{
 			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/ && ($protocols->{$protocol}->{'kmer'} == 0 || $protocols->{$protocol}->{'kmer'}%2 == 1)) { push @err_msg, "\t\tthe option \"kmer\" should be \"0\" or an odd number.\n"; }
 		}	elsif ($assembler eq "meraculous")	{
 			unless ($protocols->{$protocol}->{'kmer'} =~ /^\d+$/ && ($protocols->{$protocol}->{'kmer'} == 0 || $protocols->{$protocol}->{'kmer'}%2 == 1)) { push @err_msg, "\t\tthe option \"kmer\" should be \"0\" or an odd number.\n"; }
@@ -811,7 +830,7 @@ sub check_compatibility	{
 				}
 			}
 			unless ($overlap)	{
-				push @err_msg, "\t\tALLPATHS-LG requires at least one overlapping PE library.\n";
+                #push @err_msg, "\t\tALLPATHS-LG requires at least one overlapping PE library.\n";
 			}
 			unless (exists $read_type{'mp'} || exists $read_type{'hqmp'})	{
 				push @err_msg, "\t\tALLPATHS-LG requires at least one MP library.\n";
@@ -830,7 +849,7 @@ sub check_compatibility	{
 						push @warn_msg, "\t\tCelera Assembler recommends at least 10x coverage PacBio reads for hybrid assembly.\n";
 					}
 					unless (defined($global_opt->{'bin'}->{'bank-transact'}))	{
-						push @warn_msg, "\t\tCelera Assembler requires \"bank-transact\" for hybrid assembly, please install AMOS.\n";
+						push @err_msg, "\t\tCelera Assembler requires \"bank-transact\" for hybrid assembly, please install AMOS.\n";
 					}
 					if (exists $read_type{'mp'})	{
 						push @warn_msg, "\t\tOnly high-quality MP data can be used in hybrid assembly, normal MP libraries will be ignored.\n";
@@ -852,7 +871,34 @@ sub check_compatibility	{
 					push @err_msg, "\t\tCelera Assembler requires at least one SE/PE/HQMP library for illumina-only assembly.\n";
 				}
 			}
-		}	elsif ($protocols->{$protocol}->{'assembler'} eq "discovar")	{	# a DISCOVAR de novo protocol should have a single PE library, and the insert size should be no greater than three times the read length (which should be at least 100bp)
+        }   elsif ($protocols->{$protocol}->{'assembler'} eq "canu")    {       # a Canu protocol should have at least one PacBio/Nanopore library
+            unless (exists $read_type{'clr'})   {
+                push @err_msg, "\t\tCanu requires at least one PacBio library.\n";
+            }
+            if (scalar keys %read_type > 1) {
+                push @err_msg, "\t\tiWGS currently only supports Canu assembly with PacBio libraries.\n";
+            }
+        }   elsif ($protocols->{$protocol}->{'assembler'} eq "dbg2olc")    {     # a FALCON protocol should have at least one PacBio/Nanopore library
+            unless (exists $read_type{'clr'})   {
+                push @err_msg, "\t\tDBG2OLC requires at least one PacBio library.\n";
+            }
+            if (scalar keys %read_type > 1) {
+                push @err_msg, "\t\tDBG2OLC is only compatible with PacBio libraries.\n";
+            }
+            unless (defined($global_opt->{'bin'}->{'blasr'}) && -e $global_opt->{'bin'}->{'blasr'}) {
+                push @err_msg, "\t\tthe tool \"BLASR\" is not available, DBG2OLC needs it for consensus calling\.\n";
+            }
+            unless (defined($global_opt->{'bin'}->{'pbdagcon'}) && -e $global_opt->{'bin'}->{'pbdagcon'}) {
+                push @err_msg, "\t\tthe tool \"PDBAGCON\" is not available, DBG2OLC needs it for consensus calling\.\n";
+            }
+            unless (defined($global_opt->{'bin'}->{'sparc'}) && -e $global_opt->{'bin'}->{'sparc'}) {
+                push @err_msg, "\t\tthe tool \"Sparc\" is not available, DBG2OLC needs it for consensus calling\.\n";
+            }
+            my $dbg2olc_dir = dirname($global_opt->{'bin'}->{'dbg2olc'});
+            unless (-e "$dbg2olc_dir/split_and_run_sparc.sh" && -e "$dbg2olc_dir/split_and_create_cns_batches.sh" && -e "$dbg2olc_dir/split_reads_by_backbone.py" && -e "$dbg2olc_dir/SeqIO.py")    {
+                push @err_msg, "\t\tall of the DBG2OLC utility scripts are not available, DBG2OLC needs them for consensus calling\.\n";
+            }
+        }	elsif ($protocols->{$protocol}->{'assembler'} eq "discovar")	{	# a DISCOVAR de novo protocol should have a single PE library, and the insert size should be no greater than three times the read length (which should be at least 100bp)
 			if (!(exists $read_type{'pe'}) || scalar keys %read_type > 1)	{
 				push @err_msg, "\t\tDiscovar de novo is only compatible with PE libraries.\n";
 			}	else	{
@@ -862,6 +908,13 @@ sub check_compatibility	{
 					}
 				}
 			}
+        }   elsif ($protocols->{$protocol}->{'assembler'} eq "falcon")    {     # a FALCON protocol should have at least one PacBio/Nanopore library
+            unless (exists $read_type{'clr'})   {
+                push @err_msg, "\t\tFALCON requires at least one PacBio library.\n";
+            }
+            if (scalar keys %read_type > 1) {
+                push @err_msg, "\t\tFALCON is only compatible with PacBio libraries.\n";
+            }
 		}	elsif ($protocols->{$protocol}->{'assembler'} eq "masurca")	{	# a MaSuRCA protocol should have at least one SE/PE/HQMP library, and no PacBio library
 			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hqmp'})	{
 				push @err_msg, "\t\tMaSuRCA requires at least one SE/PE/HQMP library.\n";
@@ -869,6 +922,24 @@ sub check_compatibility	{
 			if (exists $read_type{'clr'})	{
 				push @err_msg, "\t\tMaSuRCA is not compatible with PacBio reads.\n";
 			}
+		}	elsif ($protocols->{$protocol}->{'assembler'} eq "metassembler")	{	# a Metassembler protocol should have only one PE/HQMP library, and no PacBio library
+			unless (exists $read_type{'pe'} || exists $read_type{'mp'} || exists $read_type{'hqmp'})	{
+				push @err_msg, "\t\tMetassembler requires one PE/MP/HQMP library.\n";
+			}
+			if (exists $read_type{'se'})	{
+				push @err_msg, "\t\tMetassembler is not compatible with SE library.\n";
+			}
+			if (exists $read_type{'clr'})	{
+				push @err_msg, "\t\tMetassembler is not compatible with PacBio library.\n";
+			}
+            my $total_lib = 0;
+            map { $total_lib += scalar keys %{$read_type{$_}} } keys %read_type;
+            if ($total_lib > 1) {
+                push @err_msg, "\t\tMetassembler can only accept one library.\n";
+            }
+            unless (defined($global_opt->{'bin'}->{'bowtie2'}) && -e $global_opt->{'bin'}->{'bowtie2'}) {
+                push @err_msg, "\t\tthe tool \"Bowtie2\" is not available, Metassembler needs it for read mapping\.\n";
+            }
 		}	elsif ($protocols->{$protocol}->{'assembler'} eq "meraculous")	{	# a SOAPdenovo2 protocol should have at least one PE/HQMP library, and no PacBio library
 			unless (exists $read_type{'pe'} || exists $read_type{'hqmp'})	{
 				push @err_msg, "\t\tMeraculous requires at least one PE/HQMP library.\n";
@@ -903,6 +974,12 @@ sub check_compatibility	{
 			if (exists $read_type{'clr'})	{
 				push @err_msg, "\t\tSGA is not compatible with PacBio reads.\n";
 			}
+            unless (defined($global_opt->{'bin'}->{'bwa'}) && -e $global_opt->{'bin'}->{'bwa'}) {
+                push @warn_msg, "\t\tthe tool \"BWA\" is not available, SGA will not perform scaffolding!\n";
+            }
+            unless (defined($global_opt->{'bin'}->{'samtools'}) && -e $global_opt->{'bin'}->{'samtools'}) {
+                push @warn_msg, "\t\tthe tool \"SAMtools\" is not available, SGA will not perform scaffolding!\n";
+            }
 		}	elsif ($protocols->{$protocol}->{'assembler'} eq "soapdenovo2")	{	# a SOAPdenovo2 protocol should have at least one SE/PE library, and no PacBio library
 			unless (exists $read_type{'se'} || exists $read_type{'pe'} || exists $read_type{'hqmp'})	{
 				push @err_msg, "\t\tSOAPdenovo2 requires at least one SE/PE/HQMP library.\n";
@@ -924,7 +1001,7 @@ sub check_compatibility	{
 			}
 			if (exists $read_type{'mp'})	{
 				unless (defined($global_opt->{'bin'}->{'fastx'}) && -e $global_opt->{'bin'}->{'fastx'})	{
-					push @err_msg, "\t\tVelvet requires FASTX to process MP libraries.\n";
+					push @err_msg, "\t\tthe tool \"FASTX\" is not available, Velvet needs it to process MP libraries.\n";
 				}
 			}
 			if (exists $read_type{'clr'})	{
@@ -1132,9 +1209,15 @@ sub read_conf_file	{
 		"blasr" => "bin",
 		"pbdagcon" => "bin",
 		"bank-transact" => "bin",
-		"discovar" => "bin",
+        "canu" => "bin",
+        "dbg2olg" => "bin",
+        "sparc" => "bin",
+        "discovar" => "bin",
+        "falcon" => "bin",
 		"masurca" => "bin",
 		"meraculous" => "bin",
+        "metassembler" => "bin",
+        "bowtie2" => "bin",
 		"minia" => "bin",
 		"platanus" => "bin",
 		"sga" => 'bin',
@@ -1327,7 +1410,10 @@ sub write_conf_file	{
 			push @conf, $protocol.".assembler = CA\n";
 			push @conf, $protocol.".pbCNS = $global_opt->{'protocol'}->{$protocol}->{'pbcns'}\n";
 			push @conf, $protocol.".sensitive = $global_opt->{'protocol'}->{$protocol}->{'sensitive'}\n";
-		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "discovar")	{
+        }   elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "canu") {
+            push @conf, $protocol.".assembler = Canu\n";
+            push @conf, $protocol.".sensitive = $global_opt->{'protocol'}->{$protocol}->{'sensitive'}\n";
+        }	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "discovar")	{
 			push @conf, $protocol.".assembler = DISCOVAR\n";
 		}	elsif ($global_opt->{'protocol'}->{$protocol}->{'assembler'} eq "masurca")	{
 			push @conf, $protocol.".assembler = MaSuRCA\n";
@@ -1369,6 +1455,8 @@ sub write_conf_file	{
 		}
 	}
 	
+    push @conf, "\nKmerGenie.diploid = $global_opt->{'kmergenie'}->{'diploid'}\n";
+
 	open PROT_CONF, "> $cwd/protocols.conf" or die "Can't write to protocols.ctrl!";
 	print PROT_CONF @conf;
 	close (PROT_CONF);
@@ -1406,8 +1494,14 @@ sub write_conf_file	{
 	push @conf, "bin.BLASR = ".(defined($global_opt->{'bin'}->{'blasr'}) ? $global_opt->{'bin'}->{'blasr'} : " ")."\n";
 	push @conf, "bin.PDBAGCON = ".(defined($global_opt->{'bin'}->{'pbdagcon'}) ? $global_opt->{'bin'}->{'pbdagcon'} : " ")."\n";
 	push @conf, "bin.bank-transact = ".(defined($global_opt->{'bin'}->{'bank-transact'}) ? $global_opt->{'bin'}->{'bank-transact'} : " ")."\n";
-	push @conf, "bin.DISCOVAR = ".(defined($global_opt->{'bin'}->{'discovar'}) ? $global_opt->{'bin'}->{'discovar'} : " ")."\n";
+	push @conf, "bin.Canu = ".(defined($global_opt->{'bin'}->{'canu'}) ? $global_opt->{'bin'}->{'canu'} : " ")."\n";
+	push @conf, "bin.DBG2OLC = ".(defined($global_opt->{'bin'}->{'dbg2olc'}) ? $global_opt->{'bin'}->{'dbg2olc'} : " ")."\n";
+	push @conf, "bin.Sparc = ".(defined($global_opt->{'bin'}->{'sparc'}) ? $global_opt->{'bin'}->{'sparc'} : " ")."\n";
+    push @conf, "bin.DISCOVAR = ".(defined($global_opt->{'bin'}->{'discovar'}) ? $global_opt->{'bin'}->{'discovar'} : " ")."\n";
+    push @conf, "bin.FALCON = ".(defined($global_opt->{'bin'}->{'falcon'}) ? $global_opt->{'bin'}->{'falcon'} : " ")."\n";
 	push @conf, "bin.MaSuRCA = ".(defined($global_opt->{'bin'}->{'masurca'}) ? $global_opt->{'bin'}->{'masurca'} : " ")."\n";
+	push @conf, "bin.Metassembler = ".(defined($global_opt->{'bin'}->{'metassembler'}) ? $global_opt->{'bin'}->{'metassembler'} : " ")."\n";
+	push @conf, "bin.Bowtie2 = ".(defined($global_opt->{'bin'}->{'bowtie2'}) ? $global_opt->{'bin'}->{'bowtie2'} : " ")."\n";
 	push @conf, "bin.Meraculous = ".(defined($global_opt->{'bin'}->{'meraculous'}) ? $global_opt->{'bin'}->{'meraculous'} : " ")."\n";
 	push @conf, "bin.Minia = ".(defined($global_opt->{'bin'}->{'minia'}) ? $global_opt->{'bin'}->{'minia'} : " ")."\n";
 	push @conf, "bin.Planatus = ".(defined($global_opt->{'bin'}->{'planatus'}) ? $global_opt->{'bin'}->{'planatus'} : " ")."\n";

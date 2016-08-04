@@ -15,7 +15,7 @@ use Utilities;
 
 my $usage = "
 iWGS: in silico Whole Genome Sequencer and Analyzer
-Version 1.0
+Version 1.1
 
 Usage: iWGS [options]
 
@@ -38,6 +38,7 @@ Advanced options:
 					files for libraries, assembly protocols, and miscellaneous options, respectively. These
 					configuration files would allow each library/protocol to have different parameters.
 				3: 	restart from the configuration files generated in Mode 2.
+                4:  quit after reads simulation
 --Conf				the configuration files for libraries, assembly protocols, and misellaneous options, separated by comma.
 --Real				run iWGS with real datasets
 
@@ -183,6 +184,9 @@ foreach my $library (sort keys %{$global_opt{'library'}})	{
 	&Reads::simulation($library, \%global_opt);
 }
 
+if ($mode == 4) {
+    die "Reads simulation done successfully!\nThe current iWGS run in Mode $mode finished!\n";
+}
 
 #############################
 # quality control
@@ -227,13 +231,46 @@ unless (-d "$global_opt{'out_dir'}/assemblies")	{
 	mkdir("$global_opt{'out_dir'}/assemblies");
 }
 
+my %defer = (
+    "dbg2olc" => 1,
+    "metassembler" => 1,
+);
+
+my %deferred;
 foreach my $protocol (sort keys %{$global_opt{'protocol'}})	{
+    if (defined($defer{$global_opt{'protocol'}->{$protocol}->{'assembler'}}))    {
+        $deferred{$global_opt{'protocol'}->{$protocol}->{'assembler'}}->{$protocol} = 1;
+        next;
+    }
+
 	unless (-d "$global_opt{'out_dir'}/protocols/$protocol")	{
 		mkdir("$global_opt{'out_dir'}/protocols/$protocol");
 	}
 	chdir("$global_opt{'out_dir'}/protocols/$protocol");
 
 	&Assembly::assemble($protocol, \%global_opt, $overwrite, $cleanup);	
+}
+
+if (defined($deferred{'dbg2olc'}))  {
+    foreach my $protocol (sort keys %{$deferred{'dbg2olc'}})    {
+        unless (-d "$global_opt{'out_dir'}/protocols/$protocol")    {
+            mkdir("$global_opt{'out_dir'}/protocols/$protocol");
+        }
+        chdir("$global_opt{'out_dir'}/protocols/$protocol");
+
+        &Assembly::assemble($protocol, \%global_opt, $overwrite, $cleanup);
+    }
+}
+
+if (defined($deferred{'metassembler'})) {
+    foreach my $protocol (sort keys %{$deferred{'metassembler'}}) {
+	    unless (-d "$global_opt{'out_dir'}/protocols/$protocol")	{
+		    mkdir("$global_opt{'out_dir'}/protocols/$protocol");
+	    }
+	    chdir("$global_opt{'out_dir'}/protocols/$protocol");
+        
+	    &Assembly::assemble($protocol, \%global_opt, $overwrite, $cleanup);	
+    }
 }
 
 #############################
