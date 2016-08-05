@@ -2,9 +2,9 @@
 # General options
 #############################
 genome = S_cerevisiae_288C.mito.fa			# the reference genome sequence in fasta format 
-out_dir = iWGS_test				        	# all outputs will be written to the folder "./iWGS_test"
-threads = 8				        	    	# number of CPUs to use (default: 1)
-memory = 12				            		# number of GBs of memory to use (default: 8)
+out_dir = iWGS_test				        # all outputs will be written to the folder "./iWGS_test"
+threads = 8				        	# number of CPUs to use (default: 1)
+memory = 12				            	# number of GBs of memory to use (default: 8)
 
 #############################
 # Library options
@@ -18,45 +18,45 @@ library = L005,CLR,10,0.856,0.029			# PacBio CLR library "L005" - coverage: 10x;
 #############################
 # Simulator options
 #############################
-pIRS.error_rate = 				        	# substitution error rate: 0, 1, or 0.0001-0.63 (default: 1 - indicate that the default setting of pIRS should be used)
+pIRS.error_rate = 				        # substitution error rate: 0, 1, or 0.0001-0.63 (default: 1 - indicate that the default setting of pIRS should be used)
 pIRS.error_profile = 		        		# the base-calling profile for simulating substitution-error and quality score (default: the default profile of pIRS)
-pIRS.gc = 			        		       	# whether to simulate GC bias: 1 - yes; 0 - no (default: 1)
-pIRS.gc_profile = 			        		# the GC content-coverage file for simulating GC bias (default: the default profile of pIRS)
-pIRS.indel = 				        		# whether to simulate indel errors: 1 - yes; 0 - no (default: 1)
+pIRS.gc = 			        		# whether to simulate GC bias: 1 - yes; 0 - no (default: 1)
+pIRS.gc_profile = 			        	# the GC content-coverage file for simulating GC bias (default: the default profile of pIRS)
+pIRS.indel = 				        	# whether to simulate indel errors: 1 - yes; 0 - no (default: 1)
 pIRS.indel_profile =			 	    	# the InDel-error profile for simulating InDel-error (default: the default profile of pIRS)
 
-ART.qual_shift1 = 		        			# the amount to shift the quality score of all first-reads (default: 0)
-ART.qual_shift2 = 				        	# the amount to shift the quality score of all second-reads (default: 0)
+ART.qual_shift1 = 		        		# the amount to shift the quality score of all first-reads (default: 0)
+ART.qual_shift2 = 				        # the amount to shift the quality score of all second-reads (default: 0)
 ART.qual_profile1 = 		      			# the quality profile of first-reads (default: the default profile of ART)
 ART.qual_profile2 = 		        		# the quality profile of second-reads (default: the default profile of ART)
-ART.ins_rate1 = 		        			# the insertion rate of first-reads (default: 0.00009)
-ART.ins_rate2 = 		        			# the insertion rate of second-reads (default: 0.00015)
-ART.del_rate1 = 		        			# the deletion rate of first-reads (default: 0.00011)
-ART.del_rate2 = 		        			# the deletion rate of second-reads (default: 0.00023)
+ART.ins_rate1 = 		        		# the insertion rate of first-reads (default: 0.00009)
+ART.ins_rate2 = 		        		# the insertion rate of second-reads (default: 0.00015)
+ART.del_rate1 = 		        		# the deletion rate of first-reads (default: 0.00011)
+ART.del_rate2 = 		        		# the deletion rate of second-reads (default: 0.00023)
 
-PBSIM.model_qc = 				        	# the model of quality code for simulating read accuracy (default: the default profile of PBSIM)
-PBSIM.ratio = 					        	# the ratio of substitution:insertion:deletion errors (default: 10:60:30)
-PBSIM.accuracy_max = 					    # the maximum read accuracy (default: 0.90)
+PBSIM.model_qc = 				        # the model of quality code for simulating read accuracy (default: the default profile of PBSIM)
+PBSIM.ratio = 					        # the ratio of substitution:insertion:deletion errors (default: 10:60:30)
+PBSIM.accuracy_max = 					# the maximum read accuracy (default: 0.90)
 PBSIM.accuracy_min = 				        # the minimum read accuracy (default: 0.75)
 PBSIM.length_mean = 			        	# the mean of read length (default: 3000)
-PBSIM.length_sd = 			        		# the standard deviation of read length (default: 2300)
-PBSIM.length_max = 		        			# the maximum read length (default: 25000)
-PBSIM.length_min = 					        # the minimum read length (default: 100)
+PBSIM.length_sd = 			        	# the standard deviation of read length (default: 2300)
+PBSIM.length_max = 		        		# the maximum read length (default: 25000)
+PBSIM.length_min = 					# the minimum read length (default: 100)
 
 #############################
 # Quality control options
 #############################
-QC = L001						            # whether to perform QC on selected libraries (provide a list of library names separated by comma) or all libraries ("all")
+QC = L001						# whether to perform QC on selected libraries (provide a list of library names separated by comma) or all libraries ("all")
 
-Trimmomatic.trailing = 3				    # the quality score cutoff for Trimmomatic quaulity-based trimming from 3' end of reads
-Trimmomatic.adapters = adapters.filelist	# the file containing the list of adapter sequence files used for Trimmomatic adapter trimming 				
-Trimmomatic.minlen = 25					    # the minimum read length after Trimmomatic trimming
+Trimmomatic.trailing = 3				# the quality score cutoff for Trimmomatic quaulity-based trimming from 3' end of reads
+Trimmomatic.adapters = adapters.filelist		# the file containing the list of adapter sequence files used for Trimmomatic adapter trimming 				
+Trimmomatic.minlen = 25					# the minimum read length after Trimmomatic trimming
 
-NextClip.adapter = 					        # the adapter sequence for NextClip adapter trimming
-NextClip.minlen = 25					    # the minimum read length after NextClip trimming
+NextClip.adapter = 					# the adapter sequence for NextClip adapter trimming
+NextClip.minlen = 25					# the minimum read length after NextClip trimming
 
-Correction.tool = Lighter				    # the error correction tool to be used (default: "Lighter"; also support "Quake")
-Correction.kmer = 					        # the k-mer size used for error correction
+Correction.tool = Lighter				# the error correction tool to be used (default: "Lighter"; also support "Quake")
+Correction.kmer = 					# the k-mer size used for error correction
 
 #############################
 # Assembly protocol options
@@ -64,52 +64,55 @@ Correction.kmer = 					        # the k-mer size used for error correction
 protocol = P001,ABYSS,L001,L002				# assembly protocol "P001" that uses the ABYSS assembler and libraries "L001" and "L002"
 protocol = P002,ALLPATHS,L001,L002			# assembly protocol "P002" that uses the ALLPATHS-LG assembler and libraries "L001" and "L002"
 protocol = P003,MaSuRCA,L001,L002			# assembly protocol "P003" that uses the MaSuRCA assembler and libraries "L001" and "L002"
-protocol = P004,Meraculous,L001,L002		# assembly protocol "P004" that uses the Meraculous assembler and libraries "L001" and "L002"
-protocol = P005,Platanus,L001,L002			# assembly protocol "P005" that uses the Platanus assembler and libraries "L001" and "L002"
-protocol = P006,SGA,L001,L002				# assembly protocol "P006" that uses the SGA assembler and libraries "L001" and "L002"
-protocol = P007,SOAPdenovo2,L001,L002		# assembly protocol "P007" that uses the SOAPdenovo2 assembler and libraries "L001" and "L002"
-protocol = P008,SPAdes,L001,L002			# assembly protocol "P008" that uses the SPAdes assembler and libraries "L001" and "L002"
-protocol = P009,Velvet,L001,L002			# assembly protocol "P009" that uses the Velvet assembler and libraries "L001" and "L002"
-protocol = P010,Metassembler,L002           # assembly protocol "P010" that uses the Metassembler and library "L002" plus all the Illumina-based assemblies
-protocol = P011,DISCOVAR,L004				# assembly protocol "P011" that uses the DISCOVAR de novo assembler and the library "L004"
-protocol = P012,CA,L003					    # assembly protocol "P012" that uses the Celera Assembler and the library "L003"
-protocol = P013,Canu,L003			        # assembly protocol "P013" that uses the Canu assembler and the library "L003"
-protocol = P014,FALCON,L003			        # assembly protocol "P014" that uses the FALCON assembler and the library "L003"
-#protocol = P015,DBG2OLC,L005               # assembly protocol "P015" that uses the DBG2OLC assembler and library "L005" plus the best Illumina-based assembly
-protocol = P016,SPAdes,L001,L002,L005		# assembly protocol "P016" that uses the SPAdes assembler and libraries "L001", "L002", and "L005"
+protocol = P004,Meraculous,L001,L002			# assembly protocol "P004" that uses the Meraculous assembler and libraries "L001" and "L002"
+protocol = P005,Minia,L001				# assembly protocol "P005" that uses the Meraculous assembler and libraries "L001" and "L002"
+protocol = P006,Platanus,L001,L002			# assembly protocol "P006" that uses the Platanus assembler and libraries "L001" and "L002"
+protocol = P007,SGA,L001,L002				# assembly protocol "P007" that uses the SGA assembler and libraries "L001" and "L002"
+protocol = P008,SOAPdenovo2,L001,L002			# assembly protocol "P008" that uses the SOAPdenovo2 assembler and libraries "L001" and "L002"
+protocol = P009,SPAdes,L001,L002			# assembly protocol "P009" that uses the SPAdes assembler and libraries "L001" and "L002"
+protocol = P010,Velvet,L001,L002			# assembly protocol "P010" that uses the Velvet assembler and libraries "L001" and "L002"
+protocol = P011,Metassembler,L002           		# assembly protocol "P011" that uses the Metassembler and library "L002" plus all the Illumina-based assemblies
+protocol = P012,DISCOVAR,L004				# assembly protocol "P012" that uses the DISCOVAR de novo assembler and the library "L004"
+protocol = P013,CA,L003					# assembly protocol "P013" that uses the Celera Assembler and the library "L003"
+protocol = P014,Canu,L003			        # assembly protocol "P014" that uses the Canu assembler and the library "L003"
+protocol = P015,FALCON,L003			        # assembly protocol "P015" that uses the FALCON assembler and the library "L003"
+#protocol = P016,DBG2OLC,L005               		# assembly protocol "P016" that uses the DBG2OLC assembler and library "L005" plus the best Illumina-based assembly
+protocol = P017,SPAdes,L001,L002,L005			# assembly protocol "P017" that uses the SPAdes assembler and libraries "L001", "L002", and "L005"
 
 #############################
 # Assembler options
 #############################
-ABYSS.kmer = 				        		# default: 0 - to be estimated using KmerGenie 
+ABYSS.kmer = 				        	# default: 0 - to be estimated using KmerGenie 
 ABYSS.option = "l=1 n=5 s=100"				# GAGE-B recipe
 
-ALLPATHS.ploidy = 				        	# default: 1; set to 2 for heterozygous assembly
+ALLPATHS.ploidy = 				        # default: 1; set to 2 for heterozygous assembly
 
-CA.pbCNS =					            	# default: 1;
-CA.sensitive =					        	# default: 0; set to 1 for lower-quality PacBio data
+CA.pbCNS =					        # default: 1;
+CA.sensitive =					       	# default: 0; set to 1 for lower-quality PacBio data
 
-MaSuRCA.kmer =			        			# default: 0 - to be determined automatically by MaSuRCA
+Canu.sensitive =					# default: 0; set to 1 for lower-quality PacBio data
 
-Meraculous.kmer = 			        		# default: 0 - to be determined automatically by Meraculous
+MaSuRCA.kmer =			        		# default: 0 - to be determined automatically by MaSuRCA
+
+Meraculous.kmer = 			        	# default: 0 - to be determined automatically by Meraculous
 Meraculous.diploid = 				    	# default: 0; set to 1 for diploid genome sequencing data
 
-SPAdes.kmer = 				        		# default: 0 - to be estimated using KmerGenie, and used in addition to "multi-kmer" (if turned on)
+SPAdes.kmer = 				        	# default: 0 - to be estimated using KmerGenie, and used in addition to "multi-kmer" (if turned on)
 SPAdes.multi-kmer = 				    	# default: 1 - to use multiple k-mer sizes
 SPAdes.option = "--only-assembler"			# set it empty " " to enable the error-correction module
 
-SOAPdenovo2.kmer = 			        		# default: 0 - to be estimated using KmerGenie
-SOAPdenovo2.option = "-F -R -E -w -u"		# GAGE-B recipe
+SOAPdenovo2.kmer = 			        	# default: 0 - to be estimated using KmerGenie
+SOAPdenovo2.option = "-F -R -E -w -u"			# GAGE-B recipe
 
-Velvet.kmer = 				        		# default: 0 - to be estimated using KmerGenie
+Velvet.kmer = 				        	# default: 0 - to be estimated using KmerGenie
 Velvet.option = "-exp_cov auto -scaffolding yes"	# GAGE-B recipe
 
 #############################
 # Evaluation options
 #############################
-QUAST.eukaryote = 0	    				    # whether the reference genome is eukaryotic: 1 - yes; 0 - no (default: 1)
-QUAST.gage = 			        			# whether to generate GAGE report: 1 - yes; 0 - no (default: 1)
-QUAST.gene = 				        		# gene annotations to be used for evaluation (default: NA)
+QUAST.eukaryote = 0	    				# whether the reference genome is eukaryotic: 1 - yes; 0 - no (default: 1)
+QUAST.gage = 			        		# whether to generate GAGE report: 1 - yes; 0 - no (default: 1)
+QUAST.gene = 				        	# gene annotations to be used for evaluation (default: NA)
 
 REAPR.libs = 				                # the libraries to be used for REAPR evalution
 

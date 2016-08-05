@@ -38,7 +38,7 @@ Advanced options:
 					files for libraries, assembly protocols, and miscellaneous options, respectively. These
 					configuration files would allow each library/protocol to have different parameters.
 				3: 	restart from the configuration files generated in Mode 2.
-                4:  quit after reads simulation
+				4:	quit after reads simulation
 --Conf				the configuration files for libraries, assembly protocols, and misellaneous options, separated by comma.
 --Real				run iWGS with real datasets
 
